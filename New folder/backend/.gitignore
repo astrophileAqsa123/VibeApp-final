@@ -1,9 +1,0 @@
-node_modules/
-.env
-.env.*
-!.env.example
-storage/apks/*
-storage/scripts/*
-!storage/apks/.gitkeep
-*.pem
-*.log
