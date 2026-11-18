@@ -78,6 +78,10 @@ const ProjectVersionSchema = new mongoose.Schema(
       type: [Object],
       default: [],
     },
+    projectFiles: {
+      type: [Object],
+      default: [],
+    },
     entrypoint: {
       type: String,
       default: "lib/main.dart",
@@ -207,6 +211,10 @@ const ProjectSchema = new mongoose.Schema(
       default: [],
     },
     fileManifest: {
+      type: [Object],
+      default: [],
+    },
+    projectFiles: {
       type: [Object],
       default: [],
     },

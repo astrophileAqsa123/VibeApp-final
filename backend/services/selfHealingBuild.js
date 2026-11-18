@@ -1,260 +1,874 @@
-const { editFlutterCodeWithGroq } = require('./groqCodeEditService');
+const { editFlutterCodeWithClaude } = require('./claudeCodeService');
 const { fixLegacyContextAuthGate } = require('./exact500AppTemplates/flutterCodeSafety');
 
-const MAX_REPAIR_ATTEMPTS = Math.max(0, Math.min(5, Number(process.env.SELF_HEAL_MAX_ATTEMPTS || 3)));
+// Self-healing keeps sending the build error to Claude until the build
+// succeeds, up to this limit (a hard stop protects against endless API
+// spend if the app can never compile). Override with SELF_HEAL_MAX_ATTEMPTS.
+const MAX_REPAIR_ATTEMPTS = Math.max(
+  0,
+  Math.min(
+    20,
+    Number(process.env.SELF_HEAL_MAX_ATTEMPTS || 8)
+  )
+);
 
+/**
+ * Classify build/analyzer errors.
+ */
 function classifyBuildError(raw = '') {
   const text = String(raw || '');
   const lower = text.toLowerCase();
+
   const categories = [];
+
   const add = (type, confidence, evidence) => {
-    if (!categories.some((item) => item.type === type)) categories.push({ type, confidence, evidence });
+    if (!categories.some((item) => item.type === type)) {
+      categories.push({
+        type,
+        confidence,
+        evidence,
+      });
+    }
   };
 
-  if (/target of uri doesn't exist|could not find package|because .* depends on|version solving failed|pub get failed/.test(lower)) {
-    add('dependency', 0.96, 'Flutter package/dependency resolution failure');
-  }
-  if (/undefined (name|class|getter|method)|isn't defined|not defined for the (type|class)|method not found/.test(lower)) {
-    add('symbol', 0.92, 'Undefined Dart symbol or member');
-  }
-  if (/expected .*('|"|;|\)|\}|\])|unexpected token|unterminated|syntax error|error: expected/.test(lower)) {
-    add('syntax', 0.9, 'Dart syntax/parser failure');
-  }
-  if (/renderflex overflowed|overflowed by .* pixels/.test(lower)) {
-    add('layout', 0.9, 'Flutter layout overflow');
-  }
-  if (/route|navigator|ongenerateroute|unknown route/.test(lower) && /error|exception|not found|missing/.test(lower)) {
-    add('navigation', 0.78, 'Navigation/route configuration problem');
-  }
-  if (/supabase|postgrest|row level security|rls|relation .* does not exist|column .* does not exist/.test(lower)) {
-    add('supabase', 0.82, 'Supabase/schema/runtime integration problem');
-  }
-  if (/gradle|android sdk|sdkmanager|java_home|keystore|signing/.test(lower)) {
-    add('environment', 0.9, 'Android/Gradle/signing environment failure');
-  }
-  if (/network|timed out|connection reset|could not resolve host|socketexception/.test(lower)) {
-    add('environment', 0.85, 'External network/tooling failure');
+  // Dart symbol/type errors
+  if (
+    /undefined (name|class|getter|method)|isn't defined|not defined for the (type|class)|method not found|argument type .* can't be assigned|type .* is not a subtype|the getter .* isn't defined|the method .* isn't defined/.test(
+      lower
+    )
+  ) {
+    add(
+      'symbol',
+      0.95,
+      'Undefined Dart symbol, getter, method, class, or incompatible type'
+    );
   }
 
-  if (!categories.length) add('unknown', 0.35, 'Unclassified Flutter build failure');
+  // Dart syntax/parser errors
+  if (
+    /expected .*('|";|\)|\}|\])|unexpected token|unterminated|syntax error|error: expected|missing ','|missing ';'/.test(
+      lower
+    )
+  ) {
+    add(
+      'syntax',
+      0.92,
+      'Dart syntax/parser failure'
+    );
+  }
+
+  // Flutter layout errors
+  if (
+    /renderflex overflowed|overflowed by .* pixels/.test(
+      lower
+    )
+  ) {
+    add(
+      'layout',
+      0.90,
+      'Flutter layout overflow'
+    );
+  }
+
+  // Dependency errors
+  if (
+    /target of uri doesn't exist|could not find package|version solving failed|pub get failed|pubspec/.test(
+      lower
+    )
+  ) {
+    add(
+      'dependency',
+      0.96,
+      'Flutter package/dependency problem'
+    );
+  }
+
+  // Supabase/database errors
+  if (
+    /supabase|postgrest|row level security|rls|relation .* does not exist|column .* does not exist/.test(
+      lower
+    )
+  ) {
+    add(
+      'supabase',
+      0.82,
+      'Supabase/database integration problem'
+    );
+  }
+
+  // Android/Gradle environment errors
+  const environmentMarkers = [
+    'licenses have not been accepted',
+    'accept the sdk license agreements',
+    'failed to install the following android sdk packages',
+    'platforms;android-',
+    'build-tools;',
+    'sdkmanager.bat --licenses',
+    'using android sdk:',
+    'could not determine the dependencies of task',
+    'failed to determine the dependencies of task',
+    'android sdk',
+    'gradle',
+    'java_home',
+    'keystore',
+    'signing',
+    'sdk packages',
+    'license agreement',
+    'license agreements',
+  ];
+
+  if (
+    environmentMarkers.some((marker) =>
+      lower.includes(marker)
+    )
+  ) {
+    add(
+      'environment',
+      0.98,
+      'Android SDK/Gradle/toolchain/license failure'
+    );
+  }
+
+  // Network/toolchain failures
+  if (
+    /network|timed out|connection reset|could not resolve host|socketexception|connection refused|failed to download|download.*failed/.test(
+      lower
+    )
+  ) {
+    add(
+      'environment',
+      0.88,
+      'Network/toolchain failure'
+    );
+  }
+
+  if (!categories.length) {
+    add(
+      'unknown',
+      0.35,
+      'Unclassified build failure'
+    );
+  }
+
   return categories;
 }
 
-function deterministicRepair(code = '', rawError = '') {
+/**
+ * Environment failure detection.
+ */
+function isEnvironmentFailure(categories = []) {
+  return (
+    categories.length > 0 &&
+    categories.every(
+      (item) => item.type === 'environment'
+    )
+  );
+}
+
+function containsEnvironmentFailureText(rawError = '') {
+  const lower = String(rawError || '').toLowerCase();
+
+  const markers = [
+    'licenses have not been accepted',
+    'accept the sdk license agreements',
+    'failed to install the following android sdk packages',
+    'platforms;android-34',
+    'build-tools;30.0.3',
+    'sdkmanager.bat --licenses',
+    'using android sdk:',
+    'could not determine the dependencies of task',
+    'failed to determine the dependencies of task',
+    'android sdk',
+  ];
+
+  return markers.some((marker) =>
+    lower.includes(marker)
+  );
+}
+
+/**
+ * Deterministic compatibility repairs.
+ */
+function deterministicRepair(
+  code = '',
+  rawError = ''
+) {
   let updated = String(code || '');
   const fixes = [];
 
-  const legacyRoleGateFixed = fixLegacyContextAuthGate(updated);
-  if (legacyRoleGateFixed !== updated) {
-    updated = legacyRoleGateFixed;
-    fixes.push('Repaired legacy compact role gate emitted by older VibeApp versions');
-  }
-  const error = String(rawError || '');
+  // Legacy VibeApp role gate repair
+  try {
+    const fixed =
+      fixLegacyContextAuthGate(updated);
 
-  // Common Flutter API migrations that can make generated code fail on newer SDKs.
+    if (fixed !== updated) {
+      updated = fixed;
+
+      fixes.push(
+        'Repaired legacy compact role gate'
+      );
+    }
+  } catch (error) {
+    console.warn(
+      'Legacy role gate repair skipped:',
+      error?.message || error
+    );
+  }
+
+  // Flutter API migrations
   const migrations = [
-    [/ElevatedButton\.styleFrom\(\s*primary:/g, 'ElevatedButton.styleFrom(backgroundColor:', 'Migrated ElevatedButton primary → backgroundColor'],
-    [/TextButton\.styleFrom\(\s*primary:/g, 'TextButton.styleFrom(foregroundColor:', 'Migrated TextButton primary → foregroundColor'],
-    [/OutlinedButton\.styleFrom\(\s*primary:/g, 'OutlinedButton.styleFrom(foregroundColor:', 'Migrated OutlinedButton primary → foregroundColor'],
-    [/\bprimaryVariant:/g, 'primaryContainer:', 'Migrated ColorScheme primaryVariant → primaryContainer'],
-    [/\bsecondaryVariant:/g, 'secondaryContainer:', 'Migrated ColorScheme secondaryVariant → secondaryContainer'],
-    [/\baccentColor:/g, 'secondary:', 'Migrated deprecated accentColor'],
+    [
+      /ElevatedButton\.styleFrom\(\s*primary:/g,
+      'ElevatedButton.styleFrom(backgroundColor:',
+      'Migrated ElevatedButton primary → backgroundColor',
+    ],
+
+    [
+      /TextButton\.styleFrom\(\s*primary:/g,
+      'TextButton.styleFrom(foregroundColor:',
+      'Migrated TextButton primary → foregroundColor',
+    ],
+
+    [
+      /OutlinedButton\.styleFrom\(\s*primary:/g,
+      'OutlinedButton.styleFrom(foregroundColor:',
+      'Migrated OutlinedButton primary → foregroundColor',
+    ],
+
+    [
+      /\bprimaryVariant:/g,
+      'primaryContainer:',
+      'Migrated ColorScheme primaryVariant → primaryContainer',
+    ],
+
+    [
+      /\bsecondaryVariant:/g,
+      'secondaryContainer:',
+      'Migrated ColorScheme secondaryVariant → secondaryContainer',
+    ],
+
+    [
+      /\baccentColor:/g,
+      'secondary:',
+      'Migrated deprecated accentColor',
+    ],
   ];
-  for (const [pattern, replacement, description] of migrations) {
+
+  for (
+    const [
+      pattern,
+      replacement,
+      description,
+    ] of migrations
+  ) {
     if (pattern.test(updated)) {
-      updated = updated.replace(pattern, replacement);
+      updated = updated.replace(
+        pattern,
+        replacement
+      );
+
       fixes.push(description);
     }
   }
 
+  // Color.withValues -> withOpacity
+  const withValuesPattern =
+    /\.withValues\(\s*alpha\s*:\s*([^)]+)\)/g;
 
-  // Cross-version Flutter compatibility repairs. The build worker may run a
-  // different stable Flutter SDK than the model/factory assumed. Prefer older,
-  // broadly supported APIs in generated code.
-  const withValuesPattern = /\.withValues\(\s*alpha\s*:\s*([^)]+)\)/g;
-  if (withValuesPattern.test(updated)) {
-    updated = updated.replace(withValuesPattern, '.withOpacity($1)');
-    fixes.push('Migrated Color.withValues(alpha:) -> withOpacity() for Flutter SDK compatibility');
+  if (
+    withValuesPattern.test(updated)
+  ) {
+    updated = updated.replace(
+      withValuesPattern,
+      '.withOpacity($1)'
+    );
+
+    fixes.push(
+      'Migrated Color.withValues(alpha:)'
+    );
   }
 
-  const dropdownInitialValuePattern = /(DropdownButtonFormField(?:<[^>]+>)?\s*\([^)]*?)\binitialValue\s*:/g;
-  if (dropdownInitialValuePattern.test(updated)) {
-    updated = updated.replace(dropdownInitialValuePattern, '$1value:');
-    fixes.push('Migrated DropdownButtonFormField initialValue -> value for older Flutter SDK compatibility');
-  }
-
-  // Repair invalid Dart currency interpolation emitted by nested JS templates.
-  // Example invalid Dart: '$${amount}' -> valid Dart: '\$${amount}'.
+  // Currency interpolation
   if (/\$\$\{/.test(updated)) {
-    updated = updated.replace(/\$\$\{/g, () => '\\$${');
-    fixes.push('Escaped literal currency dollar before Dart interpolation');
-  }
+    updated = updated.replace(
+      /\$\$\{/g,
+      '\\$${'
+    );
 
-  // A bare '$' inside a Dart string is invalid because it starts interpolation.
-  // Use a raw Dart string so the literal survives JavaScript/template nesting.
-  const bareDollarPattern = /(?<!r)'\$'/g;
-  if (bareDollarPattern.test(updated)) {
-    updated = updated.replace(bareDollarPattern, () => "r'$'");
-    fixes.push('Replaced bare Dart dollar string with raw literal');
-  }
-
-  // Generated chart maxima must remain double when the widget API expects double.
-  // Example: [food, travel, 1].reduce(...) can infer num; use <double>[..., 1.0].
-  const numericMaxList = /maxValue:\s*\[([^\]]+),\s*1\]\s*\.reduce\(\(a,\s*b\)\s*=>\s*a\s*>\s*b\s*\?\s*a\s*:\s*b\)/g;
-  updated = updated.replace(numericMaxList, (match, values) => {
-    fixes.push('Forced chart maxValue list to double');
-    return `maxValue:<double>[${values},1.0].reduce((a,b)=>a>b?a:b)`;
-  });
-
-  // Generated chart data can infer List<num> when a literal list mixes integer
-  // and double expressions. SimpleBars is intentionally numeric, but older generated
-  // code may still declare an untyped local list and pass it to List<double>.
-  // When the compiler reports exactly that mismatch, make the local chart list
-  // explicitly double and normalize integer literals inside it.
-  if (/List<num>['"]? can(?:not|'t) be assigned to the parameter type ['"]List<double>/i.test(error) ||
-      /argument type ['"]List<num>['"] can(?:not|'t) be assigned to the parameter type ['"]List<double>['"]/i.test(error)) {
-    const chartVars = new Set();
-    const usagePattern = /SimpleBars\s*\(\s*values\s*:\s*([A-Za-z_][A-Za-z0-9_]*)/g;
-    for (const match of updated.matchAll(usagePattern)) chartVars.add(match[1]);
-
-    for (const variable of chartVars) {
-      const declaration = new RegExp(`final\\s+${variable}\\s*=\\s*\\[([^;]+)\\];`, 'g');
-      updated = updated.replace(declaration, (full, body) => {
-        const normalizedBody = body.replace(/(?<![A-Za-z0-9_.])(-?\d+)(?![A-Za-z0-9_.])/g, '$1.0');
-        fixes.push(`Forced chart data ${variable} to List<double>`);
-        return `final ${variable}=<double>[${normalizedBody}];`;
-      });
-    }
-  }
-
-  // Dart String.startsWith/endsWith accept String, not RegExp. LLMs often
-  // generate JavaScript-style calls such as value.endsWith(RegExp(r'[+\-*/]')).
-  // Convert them to anchored RegExp.hasMatch(...) calls.
-  const regexStringMethod = /([A-Za-z_][A-Za-z0-9_.$]*)\.(startsWith|endsWith)\(\s*RegExp\(\s*(r)?(["'])(.*?)\4\s*\)\s*\)/g;
-  updated = updated.replace(regexStringMethod, (match, target, method, rawPrefix, quote, pattern) => {
-    const isStart = method === 'startsWith';
-    let anchored = pattern;
-    if (isStart) {
-      if (!anchored.startsWith('^')) anchored = `^${anchored}`;
-    } else if (!anchored.endsWith('$')) {
-      anchored = `${anchored}$`;
-    }
-    const raw = rawPrefix || '';
-    fixes.push(`Replaced String.${method}(RegExp) with anchored RegExp.hasMatch`);
-    return `RegExp(${raw}${quote}${anchored}${quote}).hasMatch(${target})`;
-  });
-
-  // dart:html breaks Android builds. Remove it only for mobile build repair.
-  if (/dart:html/.test(updated) && /dart:html|not supported on this platform|web-only/i.test(error)) {
-    updated = updated.replace(/^\s*import\s+['"]dart:html['"](?:\s+as\s+\w+)?\s*;\s*$/gm, '');
-    fixes.push('Removed web-only dart:html import for Android build');
-  }
-
-  return { updatedCode: updated, changed: updated !== code, fixes };
-}
-
-function isEnvironmentFailure(categories = []) {
-  return categories.length > 0 && categories.every((item) => item.type === 'environment');
-}
-
-async function repairCode({ code, buildLog, attempt, originalPrompt = '' }) {
-  const categories = classifyBuildError(buildLog);
-  const deterministic = deterministicRepair(code, buildLog);
-  if (deterministic.changed) {
-    return {
-      changed: true,
-      updatedCode: deterministic.updatedCode,
-      strategy: 'deterministic',
-      categories,
-      summary: deterministic.fixes.join('; '),
-    };
-  }
-
-  if (isEnvironmentFailure(categories)) {
-    return {
-      changed: false,
-      updatedCode: code,
-      strategy: 'not-repairable',
-      categories,
-      summary: 'Build failed because of environment/tooling configuration; changing generated Dart code would be unsafe.',
-    };
-  }
-
-  if (!process.env.GROQ_API_KEY) {
-    return {
-      changed: false,
-      updatedCode: code,
-      strategy: 'ai-unavailable',
-      categories,
-      summary: 'No deterministic repair matched and GROQ_API_KEY is not configured.',
-    };
-  }
-
-  const conciseLog = String(buildLog || '').slice(-5000);
-  const instruction = `SELF-HEAL BUILD ATTEMPT ${attempt}. Fix ONLY the Flutter compile/build errors below. Preserve all existing app features, CRUD behavior, UI preset, role behavior, storage mode, and Supabase integration if present. Prefer the smallest compatible change.\n\nBUILD ERROR:\n${conciseLog}`;
-
-  // Primary AI fallback uses snippet/diff mode. The model returns only a small
-  // find/replace patch, so repair remains viable even on low-output-token Groq
-  // tiers and large generated apps.
-  let diffFailure = null;
-  try {
-    const { editFlutterCodeWithGroqDiff } = require('./groqDiffEditService');
-    const diffResult = await editFlutterCodeWithGroqDiff({
-      instruction,
-      existingCode: String(code || ''),
-      originalPrompt,
-    });
-    const updatedCode = diffResult.updatedCode;
-    if (updatedCode && updatedCode !== code) {
-      return {
-        changed: true,
-        updatedCode,
-        strategy: 'groq-diff-repair',
-        categories,
-        summary: `Groq applied a targeted patch around ${diffResult.patchedSnippet || 'the failing section'}; the pipeline will rebuild to verify it.`,
-      };
-    }
-  } catch (error) {
-    diffFailure = error;
-  }
-
-  // Secondary AI fallback: only attempt a full rewrite when the file is small
-  // enough to fit a conservative output budget. Large files stay on diff mode
-  // instead of requesting impossible multi-thousand-token completions.
-  const fullRewriteLimit = Math.max(2500, Number(process.env.SELF_HEAL_FULL_REWRITE_MAX_CHARS || 5500));
-  if (String(code || '').length <= fullRewriteLimit) {
-    try {
-      const result = await editFlutterCodeWithGroq({
-        instruction,
-        existingCode: String(code || ''),
-        maxOutputTokens: Math.max(300, Math.min(850, Number(process.env.SELF_HEAL_MAX_OUTPUT_TOKENS || 750))),
-        originalPrompt,
-      });
-      const updatedCode = result.updatedCode;
-      return {
-        changed: updatedCode !== code,
-        updatedCode,
-        strategy: 'groq-full-repair',
-        categories,
-        summary: 'Groq produced a bounded full-code repair; the pipeline will rebuild to verify it.',
-      };
-    } catch (error) {
-      return {
-        changed: false,
-        updatedCode: code,
-        strategy: 'repair-failed',
-        categories,
-        summary: `Targeted Groq repair failed (${diffFailure?.message || 'unknown'}); bounded full repair also failed (${error.message || error}).`,
-      };
-    }
+    fixes.push(
+      'Escaped literal currency dollar'
+    );
   }
 
   return {
-    changed: false,
-    updatedCode: code,
-    strategy: 'repair-failed',
+    updatedCode: updated,
+    changed: updated !== code,
+    fixes,
+  };
+}
+
+/**
+ * Validate Claude response.
+ *
+ * Claude can sometimes return:
+ *
+ * ```dart
+ * import 'package:flutter/material.dart';
+ * ...
+ * ```
+ *
+ * or an object/string wrapper.
+ *
+ * This function extracts the actual Dart source.
+ */
+function normalizeClaudeCode(response) {
+  if (
+    response === null ||
+    response === undefined
+  ) {
+    return '';
+  }
+
+  let value = response;
+
+  // If service returned an object
+  if (typeof value === 'object') {
+    value =
+      value.updatedCode ||
+      value.code ||
+      value.generatedCode ||
+      value.content ||
+      value.text ||
+      '';
+
+    // Anthropic-style content array
+    if (
+      Array.isArray(value)
+    ) {
+      value = value
+        .map((item) => {
+          if (typeof item === 'string') {
+            return item;
+          }
+
+          return (
+            item?.text ||
+            item?.content ||
+            ''
+          );
+        })
+        .join('\n');
+    }
+  }
+
+  let code = String(value || '').trim();
+
+  if (!code) {
+    return '';
+  }
+
+  // Remove markdown fences
+  code = code
+    .replace(/^```dart\s*/i, '')
+    .replace(/^```flutter\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+
+  // If Claude returned explanatory text before the Dart code,
+  // start from the first import/library/void main.
+  const starts = [
+    code.indexOf(
+      "import 'package:flutter"
+    ),
+    code.indexOf(
+      'import "package:flutter'
+    ),
+    code.indexOf(
+      'import \'dart:'
+    ),
+    code.indexOf(
+      'import "dart:'
+    ),
+    code.indexOf(
+      'void main('
+    ),
+  ].filter((index) => index >= 0);
+
+  if (starts.length > 0) {
+    const firstCodeIndex =
+      Math.min(...starts);
+
+    if (firstCodeIndex > 0) {
+      code =
+        code.slice(firstCodeIndex);
+    }
+  }
+
+  // Remove trailing markdown fence if any
+  const fenceIndex =
+    code.lastIndexOf('```');
+
+  if (fenceIndex >= 0) {
+    code =
+      code.slice(0, fenceIndex)
+        .trim();
+  }
+
+  return code;
+}
+
+/**
+ * Basic validation before accepting Claude output.
+ */
+function isValidFlutterCode(code = '') {
+  const text = String(code || '').trim();
+
+  if (!text) {
+    return false;
+  }
+
+  if (text.length < 500) {
+    return false;
+  }
+
+  const hasMain =
+    /\bvoid\s+main\s*\(/.test(text);
+
+  const hasRunApp =
+    /\brunApp\s*\(/.test(text);
+
+  const hasMaterialApp =
+    /\bMaterialApp\s*\(/.test(text);
+
+  return (
+    hasMain &&
+    hasRunApp &&
+    hasMaterialApp
+  );
+}
+
+/**
+ * Extract a useful string from Claude/service errors.
+ */
+function getErrorMessage(error) {
+  if (!error) {
+    return 'Unknown Claude error';
+  }
+
+  if (typeof error === 'string') {
+    return error;
+  }
+
+  return (
+    error.message ||
+    error.error?.message ||
+    error.response?.data?.error?.message ||
+    JSON.stringify(error)
+  );
+}
+
+/**
+ * Call Claude for build repair.
+ *
+ * IMPORTANT:
+ * This function intentionally calls Claude through the existing
+ * claudeCodeService.js instead of Groq.
+ */
+async function callClaudeBuildRepair({
+  currentCode,
+  buildError,
+  originalPrompt,
+  attempt,
+}) {
+  const instruction = `
+SELF-HEAL BUILD REPAIR
+
+This is build repair attempt ${attempt}.
+
+You are repairing an EXISTING Flutter application.
+
+Do NOT redesign the application.
+
+Do NOT regenerate a different application.
+
+Do NOT remove existing functionality.
+
+Do NOT simplify the app.
+
+Fix ONLY the actual Dart/Flutter compile or analyzer error
+shown in the build error below.
+
+Preserve the latest user-requested feature/change.
+
+Preserve:
+- screens
+- navigation
+- UI
+- state management
+- models
+- forms
+- validation
+- CRUD
+- API calls
+- Supabase integration
+- local storage
+- existing architecture
+- existing business logic
+
+If a type mismatch exists, fix the type correctly.
+
+If an undefined symbol exists, fix the symbol/import/definition correctly.
+
+If an outdated Flutter API is being used, migrate only that API.
+
+If a syntax error exists, repair the syntax.
+
+Do not add packages unless the existing code genuinely requires one.
+
+IMPORTANT OUTPUT REQUIREMENT:
+
+Return the COMPLETE contents of lib/main.dart.
+
+Do not return a diff.
+
+Do not return a patch.
+
+Do not return a partial file.
+
+Do not use "...".
+
+Do not omit unchanged code.
+
+Do not explain your answer.
+
+Do not wrap the Dart code in markdown fences.
+
+Your entire response must be the Dart source code.
+
+ORIGINAL USER PROMPT:
+${String(originalPrompt || '(not available)')}
+
+EXACT FLUTTER BUILD/ANALYZER ERROR:
+${String(buildError)}
+
+CURRENT COMPLETE lib/main.dart:
+${String(currentCode)}
+`;
+
+  console.log(
+    'Sending current main.dart + exact analyzer error to Claude...'
+  );
+
+  const result =
+    await editFlutterCodeWithClaude({
+      instruction,
+      existingCode: currentCode,
+      originalPrompt,
+    });
+
+  const normalized =
+    normalizeClaudeCode(result);
+
+  console.log(
+    `Claude raw response type: ${typeof result}`
+  );
+
+  console.log(
+    `Claude normalized code length: ${normalized.length}`
+  );
+
+  return normalized;
+}
+
+/**
+ * Main repair function.
+ */
+async function repairCode({
+  code,
+  buildLog,
+  attempt,
+  originalPrompt = '',
+}) {
+  const currentCode =
+    String(code || '');
+
+  const rawBuildError =
+    String(buildLog || '');
+
+  const categories =
+    classifyBuildError(
+      rawBuildError
+    );
+
+  console.log('');
+  console.log(
+    '================================================'
+  );
+  console.log(
+    `Claude/Sonnet build repair attempt ${attempt}`
+  );
+  console.log(
+    `Current Flutter code length: ${currentCode.length}`
+  );
+  console.log(
+    `Build error length: ${rawBuildError.length}`
+  );
+  console.log(
+    '================================================'
+  );
+
+  console.log(
+    'Build error categories:',
+    categories
+      .map(
+        (item) =>
+          item.type
+      )
+      .join(', ')
+  );
+
+  // ============================================================
+  // Environment failure
+  // ============================================================
+  if (
+    isEnvironmentFailure(
+      categories
+    ) ||
+    containsEnvironmentFailureText(
+      rawBuildError
+    )
+  ) {
+    console.log('');
+    console.log(
+      'Android/build environment failure detected.'
+    );
+    console.log(
+      'Skipping Claude code repair.'
+    );
+    console.log(
+      'Current main.dart will NOT be modified.'
+    );
+    console.log('');
+
+    return {
+      changed: false,
+      updatedCode: currentCode,
+      strategy:
+        'environment-failure',
+      categories,
+      environmentFailure: true,
+      summary:
+        'Android SDK/Gradle/toolchain/license failure. This cannot be fixed by changing main.dart.',
+    };
+  }
+
+  // ============================================================
+  // Deterministic repair
+  // ============================================================
+  const deterministic =
+    deterministicRepair(
+      currentCode,
+      rawBuildError
+    );
+
+  if (
+    deterministic.changed
+  ) {
+    console.log('');
+    console.log(
+      'Deterministic compatibility repair applied:'
+    );
+
+    deterministic.fixes.forEach(
+      (fix) => {
+        console.log(
+          ` - ${fix}`
+        );
+      }
+    );
+
+    console.log('');
+
+    return {
+      changed: true,
+      updatedCode:
+        deterministic.updatedCode,
+      strategy:
+        'deterministic',
+      categories,
+      environmentFailure: false,
+      summary:
+        deterministic.fixes.join(
+          '; '
+        ),
+    };
+  }
+
+  // ============================================================
+  // Claude key check
+  // ============================================================
+  const hasClaudeKey =
+    Boolean(
+      process.env.ANTHROPIC_API_KEY ||
+      process.env.CLAUDE_API_KEY ||
+      process.env.ANTHROPIC_API_TOKEN
+    );
+
+  if (!hasClaudeKey) {
+    console.error(
+      'Claude API key is not configured.'
+    );
+
+    return {
+      changed: false,
+      updatedCode: currentCode,
+      strategy:
+        'claude-api-key-missing',
+      categories,
+      environmentFailure: false,
+      summary:
+        'Anthropic/Claude API key is missing.',
+    };
+  }
+
+  // ============================================================
+  // Claude attempt
+  // ============================================================
+  let updatedCode = '';
+
+  try {
+    updatedCode =
+      await callClaudeBuildRepair({
+        currentCode,
+        buildError:
+          rawBuildError,
+        originalPrompt,
+        attempt,
+      });
+  } catch (error) {
+    console.error('');
+    console.error(
+      'Claude build repair request failed:'
+    );
+    console.error(
+      getErrorMessage(error)
+    );
+    console.error('');
+
+    return {
+      changed: false,
+      updatedCode: currentCode,
+      strategy:
+        'claude-request-failed',
+      categories,
+      environmentFailure: false,
+      summary:
+        getErrorMessage(error),
+    };
+  }
+
+  // ============================================================
+  // Empty response
+  // ============================================================
+  if (!updatedCode) {
+    console.warn('');
+    console.warn(
+      'Claude returned empty code.'
+    );
+    console.warn(
+      'Current main.dart was preserved.'
+    );
+    console.warn('');
+
+    return {
+      changed: false,
+      updatedCode: currentCode,
+      strategy:
+        'claude-empty-response',
+      categories,
+      environmentFailure: false,
+      summary:
+        'Claude returned an empty response. Existing Flutter code was preserved.',
+    };
+  }
+
+  // ============================================================
+  // Invalid Flutter response
+  // ============================================================
+  if (
+    !isValidFlutterCode(
+      updatedCode
+    )
+  ) {
+    console.warn('');
+    console.warn(
+      'Claude returned code that does not look like a complete Flutter main.dart.'
+    );
+    console.warn(
+      `Returned code length: ${updatedCode.length}`
+    );
+    console.warn(
+      'Existing main.dart was preserved.'
+    );
+    console.warn('');
+
+    return {
+      changed: false,
+      updatedCode: currentCode,
+      strategy:
+        'claude-invalid-response',
+      categories,
+      environmentFailure: false,
+      summary:
+        'Claude returned incomplete or invalid Flutter source. Existing code was preserved.',
+    };
+  }
+
+  // ============================================================
+  // No change
+  // ============================================================
+  if (
+    updatedCode.trim() ===
+    currentCode.trim()
+  ) {
+    console.log(
+      'Claude returned the same code.'
+    );
+
+    return {
+      changed: false,
+      updatedCode: currentCode,
+      strategy:
+        'claude-no-change',
+      categories,
+      environmentFailure: false,
+      summary:
+        'Claude returned unchanged Flutter code.',
+    };
+  }
+
+  // ============================================================
+  // Success
+  // ============================================================
+  console.log('');
+  console.log(
+    'Claude/Sonnet build repair completed successfully.'
+  );
+  console.log(
+    `Updated Flutter code length: ${updatedCode.length}`
+  );
+  console.log('');
+
+  return {
+    changed: true,
+    updatedCode,
+    strategy:
+      'claude-sonnet-build-repair',
     categories,
-    summary: `Targeted Groq repair failed safely: ${diffFailure?.message || 'no applicable patch'}. Full rewrite was skipped because the generated app is too large for the configured output-token budget.`,
+    environmentFailure: false,
+    summary:
+      'Claude/Sonnet repaired the current Flutter code using the exact analyzer error.',
   };
 }
 
@@ -263,5 +877,8 @@ module.exports = {
   classifyBuildError,
   deterministicRepair,
   isEnvironmentFailure,
+  containsEnvironmentFailureText,
+  normalizeClaudeCode,
+  isValidFlutterCode,
   repairCode,
 };

@@ -9,24 +9,24 @@ const { normalizeAppSpec } = require('../services/appSpec');
 const { buildMultiEntityFlutterApp } = require('../services/multiEntityFlutterCompiler');
 const { checkFlutterCodeSyntax } = require('../services/exact500AppTemplates/flutterCodeSafety');
 
-const UNIVERSAL_TITLES = [
-  'Dashboard', 'Quick Create', 'Categories', 'Calendar', 'Analytics', 'Reports',
-  'Favorites', 'Activity', 'Notifications', 'Profile', 'Settings',
-];
-
-test('generic component CRUD apps expose the universal 12-screen product shell', () => {
+// Behavior change (intentional): the library used to ship the same 12 tabs (Analytics, Calendar,
+// Reports, Favorites, ...) with invented sample data for every app, e.g. charts in a hospital app.
+// The shell now only contains tabs that make sense for the domain and read the real records.
+test('generic component CRUD apps expose a domain-appropriate product shell', () => {
   const result = generateExact500CrudTemplate('student management app with name age phone');
   assert.equal(result.success, true);
   assert.equal(checkFlutterCodeSyntax(result.code).valid, true);
-  assert.match(result.code, /class VibeModulePage extends StatefulWidget/);
-  assert.doesNotMatch(result.code, /Workspace actions/);
-  for (const signature of ['Create a new ', '7-day activity', 'Unread only', 'Pinned workspace', 'Weekly summary']) {
-    assert.match(result.code, new RegExp(signature.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  for (const cls of ['VibeProductShell', 'VibeDashboardPage', 'VibeProfilePage', 'VibeSettingsPage', 'CrudHomePage']) {
+    assert.match(result.code, new RegExp(`class ${cls}\\b`), `missing ${cls}`);
   }
-  for (const title of UNIVERSAL_TITLES) {
-    assert.match(result.code, new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `missing ${title}`);
+  assert.match(result.code, /label: AppProfile\.entityPlural/);
+  // Invented modules from the old universal shell must be gone.
+  for (const fake of ['VibeModulePage', '7-day activity', 'Unread only', 'Pinned workspace', 'Weekly summary', 'Quick Create']) {
+    assert.doesNotMatch(result.code, new RegExp(fake), `${fake} should not ship`);
   }
-  assert.match(result.code, /label: AppProfile\.entity \+ 's'/);
+  // A student list has no business showing charts or a calendar.
+  assert.doesNotMatch(result.code, /class VibeAnalyticsPage/);
+  assert.doesNotMatch(result.code, /class VibeCalendarPage/);
 });
 
 test('multi-entity component compiler expands primary navigation to at least 12 screens', () => {

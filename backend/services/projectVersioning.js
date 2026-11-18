@@ -16,6 +16,7 @@ function buildProjectVersion({
   requirements = [],
   componentPlan = [],
   fileManifest = [],
+  projectFiles = [],
   entrypoint = "lib/main.dart",
   createdAt = new Date(),
 } = {}) {
@@ -32,6 +33,7 @@ function buildProjectVersion({
     requirements: Array.isArray(requirements) ? requirements : [],
     componentPlan: Array.isArray(componentPlan) ? componentPlan : [],
     fileManifest: Array.isArray(fileManifest) ? fileManifest : [],
+    projectFiles: Array.isArray(projectFiles) ? projectFiles : [],
     entrypoint: String(entrypoint || "lib/main.dart"),
     createdAt,
   };
@@ -66,6 +68,7 @@ function ensureCurrentVersionSnapshot(project) {
     requirements: project.requirements,
     componentPlan: project.componentPlan,
     fileManifest: project.fileManifest,
+    projectFiles: project.projectFiles,
     entrypoint: project.entrypoint,
     createdAt: project.updatedAt || project.createdAt || new Date(),
   }));

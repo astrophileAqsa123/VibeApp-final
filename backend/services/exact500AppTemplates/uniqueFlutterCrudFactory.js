@@ -124,6 +124,43 @@ function getDefaultFields(entity = "Record") {
   ];
 }
 
+function pluralizeEntity(entity = "Record") {
+  const w = String(entity).trim() || "Record";
+  if (/(staff|news|data)$/i.test(w)) return w;
+  if (/[^aeiou]y$/i.test(w)) return `${w.slice(0, -1)}ies`;
+  if (/(s|x|z|ch|sh)$/i.test(w)) return `${w}es`;
+  return `${w}s`;
+}
+
+// Shell options come from the domain profile. Field names must exist in the final field list,
+// otherwise the chart/calendar tabs would read columns that are not there.
+function sanitizeShell(shell = {}, fields = []) {
+  const names = new Set(fields.map((f) => f.name));
+  // sanitizeField lower-cases field names (checkIn -> checkin), so compare in that form.
+  const pick = (name) => (name && names.has(toCamelCase(name)) ? toCamelCase(name) : "");
+  const status = pick(shell?.statusField);
+  const statusOptions = (fields.find((f) => f.name === status) || {}).options || [];
+  const category = pick(shell?.categoryField);
+  const date = pick(shell?.dateField);
+  const amount = pick(shell?.amountField);
+  const requested = Array.isArray(shell?.modules) ? shell.modules : [];
+  const modules = requested.filter((id) => (
+    id === "analytics" ? Boolean(status || category || amount)
+      : id === "calendar" ? Boolean(date)
+      : id === "categories" ? Boolean(category)
+      : ["dashboard", "records", "profile", "settings"].includes(id)
+  ));
+  return {
+    modules,
+    statusField: status,
+    categoryField: category,
+    dateField: date,
+    amountField: amount,
+    highlights: (Array.isArray(shell?.highlights) ? shell.highlights : []).map(String).filter((h) => statusOptions.includes(h)).slice(0, 2),
+    icon: /^[a-z0-9_]+$/.test(shell?.icon || "") ? shell.icon : "folder_copy",
+  };
+}
+
 function sanitizeTemplate(template = {}) {
   const appName = template.appName || template.title || template.name || "Generated CRUD App";
   const entity = template.entity || template.recordName || template.itemName || "Record";
@@ -142,6 +179,8 @@ function sanitizeTemplate(template = {}) {
   return {
     appName: String(appName).trim(),
     entity: String(entity).trim(),
+    entityPlural: String(template.entityPlural || pluralizeEntity(entity)).trim(),
+    shell: sanitizeShell(template.shell, fields.map(sanitizeField)),
     domain: String(template.domain || "Business").trim(),
     logo: String(template.logo || "✨").trim(),
     layout: String(template.layout || "card_stack").trim(),
@@ -192,7 +231,7 @@ function buildFieldsDart(fields = []) {
 function buildFlutterCrudApp(template = {}) {
   const safe = sanitizeTemplate(template);
   const fieldsDart = buildFieldsDart(safe.fields);
-  const productShellDart = buildProductShellDart();
+  const productShellDart = buildProductShellDart(safe.shell);
   const roleAuthDart = buildRoleAuthDart(safe.features.roles, { allowSignup: safe.features.allowSignup });
 
   return `
@@ -221,6 +260,12 @@ class AppField {
 class AppProfile {
   static const String appName = '${safeString(safe.appName)}';
   static const String entity = '${safeString(safe.entity)}';
+  static const String entityPlural = '${safeString(safe.entityPlural)}';
+  static const String statusField = '${safeString(safe.shell.statusField)}';
+  static const String categoryField = '${safeString(safe.shell.categoryField)}';
+  static const String dateField = '${safeString(safe.shell.dateField)}';
+  static const String amountField = '${safeString(safe.shell.amountField)}';
+  static const List<String> highlightStatuses = <String>[${safe.shell.highlights.map((h) => `'${safeString(h)}'`).join(", ")}];
   static const String domain = '${safeString(safe.domain)}';
   static const String logo = '${safeString(safe.logo)}';
   static const String layout = '${safeString(safe.layout)}';
@@ -247,6 +292,7 @@ class AppProfile {
   static const bool allowSignup = ${safe.features.allowSignup};
   static const String navigation = '${safeString(safe.features.navigation)}';
   static final ValueNotifier<int> recordCount = ValueNotifier<int>(0);
+  static final ValueNotifier<List<Map<String, dynamic>>> records = ValueNotifier<List<Map<String, dynamic>>>(<Map<String, dynamic>>[]);
   static double get cardRadius {
     switch (uiPreset) {
       case 'minimal': return 14;
@@ -587,6 +633,7 @@ class _CrudHomePageState extends State<CrudHomePage> {
       _records.removeWhere((record) => record['id'] == id);
     });
     AppProfile.recordCount.value = _records.length;
+    AppProfile.records.value = List<Map<String, dynamic>>.from(_records);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('\${AppProfile.entity} deleted')),
@@ -609,6 +656,7 @@ class _CrudHomePageState extends State<CrudHomePage> {
       }
     });
     AppProfile.recordCount.value = _records.length;
+    AppProfile.records.value = List<Map<String, dynamic>>.from(_records);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(existing == null ? '\${AppProfile.entity} added successfully' : '\${AppProfile.entity} updated successfully')),

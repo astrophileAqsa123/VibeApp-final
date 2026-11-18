@@ -23,10 +23,27 @@ function getUserId(req) {
  * The generated app lives in lib/main.dart; every other file is
  * boilerplate that `flutter create` would normally produce.
  */
-function buildFlutterProject(dir, { title, safeTitle, code, storageMode }) {
+function buildFlutterProject(dir, { title, safeTitle, code, storageMode, projectFiles = [] }) {
   // ── lib ────────────────────────────────────────────────────────────────
   fs.mkdirSync(path.join(dir, "lib"), { recursive: true });
-  fs.writeFileSync(path.join(dir, "lib", "main.dart"), code);
+
+  // Multi-file projects are the preferred representation. The legacy `code`
+  // field remains the authoritative lib/main.dart fallback so old projects
+  // continue to export/build exactly as before.
+  const normalizedFiles = Array.isArray(projectFiles) ? projectFiles : [];
+  if (normalizedFiles.length) {
+    for (const file of normalizedFiles) {
+      const relative = String(file?.path || "").replace(/\\/g, "/").trim();
+      if (!relative || relative.startsWith("/") || relative.includes("..")) continue;
+      if (!relative.startsWith("lib/")) continue;
+      const target = path.join(dir, relative);
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, String(file?.content || ""), "utf8");
+    }
+  }
+  if (!fs.existsSync(path.join(dir, "lib", "main.dart"))) {
+    fs.writeFileSync(path.join(dir, "lib", "main.dart"), code);
+  }
 
   // ── test ───────────────────────────────────────────────────────────────
   fs.mkdirSync(path.join(dir, "test"), { recursive: true });
@@ -71,7 +88,8 @@ flutter:
 `
   );
 
-  patchPubspec(dir, detectExtraPackages(code));
+  const projectSourceForDependencies = [code, ...(Array.isArray(projectFiles) ? projectFiles.map((file) => String(file?.content || "")) : [])].join("\n");
+  patchPubspec(dir, detectExtraPackages(projectSourceForDependencies));
 
   // ── analysis_options.yaml ──────────────────────────────────────────────
   fs.writeFileSync(
@@ -395,6 +413,7 @@ router.post("/", auth, async (req, res) => {
       requirements = [],
       componentPlan = [],
       fileManifest = [],
+      projectFiles = [],
       entrypoint = "lib/main.dart",
     } = req.body;
 
@@ -445,6 +464,7 @@ router.post("/", auth, async (req, res) => {
       requirements: Array.isArray(requirements) ? requirements : [],
       componentPlan: Array.isArray(componentPlan) ? componentPlan : [],
       fileManifest: Array.isArray(fileManifest) ? fileManifest : [],
+      projectFiles: Array.isArray(projectFiles) ? projectFiles : [],
       entrypoint: String(entrypoint || "lib/main.dart"),
       versions: [
         buildProjectVersion({
@@ -460,6 +480,7 @@ router.post("/", auth, async (req, res) => {
           requirements,
           componentPlan,
           fileManifest,
+          projectFiles,
           entrypoint,
         }),
       ],
@@ -722,6 +743,7 @@ router.post("/:id/versions/:version/restore", auth, async (req, res) => {
     project.requirements = snapshot.requirements || [];
     project.componentPlan = snapshot.componentPlan || [];
     project.fileManifest = snapshot.fileManifest || [];
+    project.projectFiles = snapshot.projectFiles || [];
     project.entrypoint = snapshot.entrypoint || "lib/main.dart";
     project.versions.push(buildProjectVersion({
       version: nextVersion,
@@ -736,6 +758,7 @@ router.post("/:id/versions/:version/restore", auth, async (req, res) => {
       requirements: project.requirements,
       componentPlan: project.componentPlan,
       fileManifest: project.fileManifest,
+      projectFiles: project.projectFiles,
       entrypoint: project.entrypoint,
     }));
     project.messages = project.messages || [];
@@ -822,6 +845,7 @@ router.get("/:id/export", auth, async (req, res) => {
       title: project.title,
       safeTitle,
       code: project.currentCode || project.generatedCode,
+      projectFiles: project.projectFiles || [],
       storageMode: project.storageMode || 'local',
     });
 
@@ -872,7 +896,7 @@ router.post("/build/export", auth, async (req, res) => {
     const safeTitle = title.replace(/[^a-z0-9_]/gi, "_").toLowerCase();
     const tempDir = path.join(__dirname, "..", "temp", `build_${Date.now()}`);
 
-    buildFlutterProject(tempDir, { title, safeTitle, code, storageMode: req.body.storageMode || 'local' });
+    buildFlutterProject(tempDir, { title, safeTitle, code, projectFiles: req.body.projectFiles || [], storageMode: req.body.storageMode || 'local' });
 
     const zipName = `${safeTitle}.zip`;
 

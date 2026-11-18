@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { createProject } from "../api/projectApi";
 import { extractCode, generateApplication, generateSupabaseApplication } from "../api/generationApi";
 import ThemeToggle from "../components/ThemeToggle";
+import GenerationOverlay from "../components/GenerationOverlay";
 
 const PROMPT_CATEGORIES = [
   {
@@ -53,6 +54,7 @@ export default function Build() {
   const [tip, setTip] = useState("");
   const [loading, setLoading] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [overlayStatus, setOverlayStatus] = useState("generating");
 
   // Supabase state
   const [useSupabase, setUseSupabase] = useState(false);
@@ -96,23 +98,32 @@ export default function Build() {
     }
 
     setLoading(true);
+    setOverlayStatus("generating");
     setCurrentStepIndex(0);
     setError("");
     setTip("");
     setResult(null);
 
     try {
+      setOverlayStatus(useSupabase ? "generating" : "generating");
       const generated = useSupabase
         ? await generateSupabaseApplication(value, supabaseUrl.trim(), supabaseAnonKey.trim())
         : await generateApplication(value);
+      setOverlayStatus("validating");
 
       const code = extractCode(generated);
+
+      if (generated?.source?.includes("claude") || generated?.claudeUsed) {
+        setOverlayStatus("validating");
+      }
 
       if (!generated.success || !code) {
         setError(generated.message || "This prompt could not be generated.");
         if (generated.tip) setTip(generated.tip);
         return;
       }
+
+      setOverlayStatus("building");
 
       const saved = await createProject({
         prompt: value,
@@ -124,6 +135,7 @@ export default function Build() {
         requirements: generated.requirements || [],
         componentPlan: generated.componentPlan || [],
         fileManifest: generated.fileManifest || [],
+        projectFiles: generated.projectFiles || [],
         entrypoint: generated.entrypoint || "lib/main.dart",
         ...(useSupabase
           ? {
@@ -146,6 +158,19 @@ export default function Build() {
 
   return (
     <main className="app-shell build-screen">
+      <GenerationOverlay
+        open={loading}
+        status={overlayStatus}
+        message={
+          overlayStatus === "repairing"
+            ? "Fixing a small code issue..."
+            : overlayStatus === "validating"
+              ? "Checking your generated Flutter code..."
+              : overlayStatus === "building"
+                ? "Preparing your app..."
+                : "Creating your Flutter app..."
+        }
+      />
       {/* ── Studio Header ── */}
       <header className="topbar">
         <div className="topbar-brand-group">

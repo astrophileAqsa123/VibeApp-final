@@ -120,7 +120,7 @@ export default function ProjectDetails() {
 
   // Workspace controls: tab = "preview" | "code", device = "iphone" | "android" | "tablet" | "desktop"
   const [activeTab, setActiveTab] = useState("preview");
-  const [codeFile, setCodeFile] = useState("main.dart"); // "main.dart" | "schema.sql"
+  const [codeFile, setCodeFile] = useState("lib/main.dart");
   const [device, setDevice] = useState("iphone");
   const stageRef = useRef(null);
   const [deviceScale, setDeviceScale] = useState(1);
@@ -214,6 +214,10 @@ export default function ProjectDetails() {
   const displayedPrompt = activeSnapshot?.prompt || project?.prompt || "";
   const displayedStorageMode = activeSnapshot?.storageMode || project?.storageMode || "local";
   const displayedTableName = activeSnapshot?.supabaseTable || project?.supabaseTable || "items";
+  const displayedProjectFiles = activeSnapshot
+    ? (Array.isArray(activeSnapshot.projectFiles) ? activeSnapshot.projectFiles : [])
+    : (Array.isArray(project?.projectFiles) ? project.projectFiles : []);
+  const selectedProjectFile = displayedProjectFiles.find((file) => file.path === codeFile);
 
   const isSupabaseProject =
     displayedStorageMode === "supabase" ||
@@ -620,7 +624,9 @@ CREATE POLICY "Allow all access" ON ${displayedTableName}
   };
 
   const handleCopyCode = () => {
-    const textToCopy = codeFile === "schema.sql" ? currentTableSql : displayedCode;
+    const textToCopy = codeFile === "schema.sql"
+      ? currentTableSql
+      : selectedProjectFile?.content || displayedCode;
     navigator.clipboard.writeText(textToCopy);
     setCopiedCode(true);
     setNotice(codeFile === "schema.sql" ? "⚡ Supabase SQL copied to clipboard!" : "Dart code copied to clipboard!");
@@ -644,11 +650,13 @@ CREATE POLICY "Allow all access" ON ${displayedTableName}
   };
 
   const handleDownloadDart = () => {
-    const blob = new Blob([displayedCode], { type: "text/plain;charset=utf-8" });
+    const content = selectedProjectFile?.content || displayedCode;
+    const fileName = selectedProjectFile?.path?.split("/").pop() || "main.dart";
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "main.dart";
+    a.download = fileName;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -1363,8 +1371,8 @@ CREATE POLICY "Allow all access" ON ${displayedTableName}
                   <div className="studio-code-file-tabs">
                     <button
                       type="button"
-                      className={`studio-code-file-tab ${codeFile === "main.dart" ? "is-active" : ""}`}
-                      onClick={() => setCodeFile("main.dart")}
+                      className={`studio-code-file-tab ${codeFile === "lib/main.dart" ? "is-active" : ""}`}
+                      onClick={() => setCodeFile("lib/main.dart")}
                     >
                       <FiCode />
                       <span>lib/main.dart</span>
@@ -1372,6 +1380,19 @@ CREATE POLICY "Allow all access" ON ${displayedTableName}
                         ({displayedCode.split("\n").length} lines)
                       </span>
                     </button>
+
+                    {displayedProjectFiles.filter((file) => file.path !== "lib/main.dart").map((file) => (
+                      <button
+                        key={file.path}
+                        type="button"
+                        className={`studio-code-file-tab ${codeFile === file.path ? "is-active" : ""}`}
+                        onClick={() => setCodeFile(file.path)}
+                      >
+                        <FiCode />
+                        <span>{file.path}</span>
+                        <span className="studio-code-file-meta">({String(file.content || "").split("\n").length} lines)</span>
+                      </button>
+                    ))}
 
                     {isSupabaseProject && (
                       <button
@@ -1387,7 +1408,7 @@ CREATE POLICY "Allow all access" ON ${displayedTableName}
                   </div>
 
                   <div className="studio-code-actions">
-                    {selectedVersion && codeFile === "main.dart" && (
+                    {selectedVersion && codeFile === "lib/main.dart" && (
                       <button
                         type="button"
                         className="studio-code-btn"
@@ -1403,7 +1424,7 @@ CREATE POLICY "Allow all access" ON ${displayedTableName}
                       onClick={handleCopyCode}
                     >
                       {copiedCode ? <FiCheck style={{ color: "var(--teal)" }} /> : <FiCopy />}
-                      <span>{copiedCode ? "Copied" : codeFile === "schema.sql" ? "Copy SQL" : "Copy Code"}</span>
+                      <span>{copiedCode ? "Copied" : codeFile === "schema.sql" ? "Copy SQL" : "Copy File"}</span>
                     </button>
 
                     <button
@@ -1412,13 +1433,13 @@ CREATE POLICY "Allow all access" ON ${displayedTableName}
                       onClick={handleDownloadCode}
                     >
                       <FiDownload />
-                      <span>{codeFile === "schema.sql" ? "Download .sql" : "Download .dart"}</span>
+                      <span>{codeFile === "schema.sql" ? "Download .sql" : "Download File"}</span>
                     </button>
                   </div>
                 </div>
 
                 <pre className="studio-code-pre">
-                  <code>{codeFile === "schema.sql" ? currentTableSql : displayedCode}</code>
+                  <code>{codeFile === "schema.sql" ? currentTableSql : selectedProjectFile?.content || displayedCode}</code>
                 </pre>
               </div>
             )}

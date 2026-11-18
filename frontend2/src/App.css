@@ -2107,3 +2107,222 @@ h2 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* VibeApp generation/recovery overlay */
+.generation-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(2, 6, 23, 0.58);
+  backdrop-filter: blur(12px);
+}
+
+.generation-overlay-card {
+  position: relative;
+  width: min(430px, 92vw);
+  padding: 28px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 20px;
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(8, 15, 32, 0.98));
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+  color: #fff;
+  overflow: hidden;
+}
+
+.generation-icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 14px;
+  border-radius: 14px;
+  background: rgba(34, 211, 238, 0.12);
+  border: 1px solid rgba(34, 211, 238, 0.28);
+  color: #67e8f9;
+  font-size: 1.25rem;
+}
+
+.generation-eyebrow,
+.mini-game-kicker {
+  margin: 0 0 6px;
+  color: #67e8f9;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.generation-overlay-card h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  line-height: 1.35;
+}
+
+.generation-subtext {
+  margin: 8px 0 18px;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.generation-status-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #cbd5e1;
+  font-size: 0.74rem;
+}
+
+.generation-status-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 999px;
+  background: #22d3ee;
+  box-shadow: 0 0 0 5px rgba(34, 211, 238, 0.1);
+  animation: generation-pulse 1.3s ease-in-out infinite;
+}
+
+.generation-elapsed {
+  margin-left: auto;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+
+.mini-game-card {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 14px;
+  background: rgba(2, 6, 23, 0.58);
+}
+
+.mini-game-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.mini-game-header strong {
+  display: block;
+  font-size: 0.86rem;
+}
+
+.mini-game-score {
+  color: #94a3b8;
+  font-size: 0.72rem;
+}
+
+.mini-game-board {
+  position: relative;
+  height: 120px;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background:
+    radial-gradient(circle at 30% 35%, rgba(34, 211, 238, 0.08), transparent 30%),
+    radial-gradient(circle at 70% 65%, rgba(16, 185, 129, 0.07), transparent 30%),
+    rgba(15, 23, 42, 0.7);
+}
+
+.mini-game-star {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border: 0;
+  background: transparent;
+  color: #fde68a;
+  font-size: 1.65rem;
+  line-height: 1;
+  cursor: pointer;
+  filter: drop-shadow(0 0 10px rgba(253, 230, 138, 0.6));
+  transition: transform 120ms ease;
+}
+
+.mini-game-star:hover {
+  transform: translate(-50%, -50%) scale(1.18);
+}
+
+.mini-game-close,
+.generation-dismiss {
+  border: 0;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 0.72rem;
+}
+
+.mini-game-close {
+  width: 100%;
+  margin-top: 9px;
+  padding: 7px;
+}
+
+.mini-game-close:hover,
+.generation-dismiss:hover {
+  color: #fff;
+}
+
+.generation-wait-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.68);
+  border: 1px solid rgba(148, 163, 184, 0.13);
+}
+
+.generation-wait-card > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.generation-wait-card strong {
+  font-size: 0.78rem;
+}
+
+.generation-wait-card span:not(.generation-wait-spinner) {
+  color: #64748b;
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.generation-wait-spinner {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  border: 2px solid rgba(148, 163, 184, 0.22);
+  border-top-color: #22d3ee;
+  border-radius: 999px;
+  animation: generation-spin 0.8s linear infinite;
+}
+
+.generation-dismiss {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+@keyframes generation-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes generation-pulse {
+  50% { opacity: 0.35; transform: scale(0.8); }
+}
+
+@media (max-width: 560px) {
+  .generation-overlay { padding: 14px; }
+  .generation-overlay-card { padding: 22px; }
+}

@@ -100,6 +100,7 @@ router.post("/run", auth, previewLimiter, async (req, res) => {
     }
 
     const projectId = req.body?.projectId || null;
+    const projectFiles = Array.isArray(req.body?.projectFiles) ? req.body.projectFiles : [];
     if (projectId && !mongoose.Types.ObjectId.isValid(projectId)) {
       return res.status(400).json({
         success: false,
@@ -142,6 +143,7 @@ router.post("/run", auth, previewLimiter, async (req, res) => {
       userId,
       projectId,
       rawCode: String(rawCode),
+      projectFiles,
     });
 
     return res.status(202).json(buildStatusPayload(req, session));

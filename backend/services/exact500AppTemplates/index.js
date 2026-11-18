@@ -5,6 +5,7 @@ const { buildArchitectBlueprint } = require('../ai/appArchitectAgent');
 const { buildFlutterCrudApp } = require("./uniqueFlutterCrudFactory");
 const { toIdentifier } = require("../appSpec");
 const { inferUiPresetFromPrompt } = require("../uiPresets");
+const { resolveDomainProfile, bindProfileToFields } = require("./domainProfiles");
 
 const GENERIC_TEMPLATE = Object.freeze({
   id: "component-crud-base",
@@ -47,22 +48,6 @@ function titleCase(value = "") {
     .join(" ");
 }
 
-function deriveNames(prompt = "") {
-  let concept = String(prompt)
-    .replace(/\b(build|create|make|generate|develop|a|an|the|flutter|crud|app|application|system|with|for|please|simple|basic)\b/gi, " ")
-    .replace(/\b(in|using)\s+(blue|red|green|purple|black|white|dark|light)(?:\s+(?:and\s+)?\w+)?(?:\s+theme)?\b/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  concept = concept.split(/\b(?:where|that|which|users? can|fields?)\b/i)[0].trim();
-  if (!concept) concept = "Records";
-  const appName = titleCase(concept).slice(0, 60);
-  const entityName = titleCase(concept
-    .replace(/\b(management|manager|tracking|tracker|booking|portal|dashboard)\b/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim() || "Record").slice(0, 45);
-  return { appName: /\b(management|manager|tracker|portal)\b/i.test(appName) ? appName : `${appName} Manager`, entity: entityName };
-}
-
 function extractExplicitFields(prompt = "") {
   const match = String(prompt).match(/\b(?:with fields?|fields?(?: should be| are)?|include fields?)\s*[:\-]?\s*([^.;]+)/i);
   if (!match) return [];
@@ -81,28 +66,6 @@ function extractExplicitFields(prompt = "") {
         : "text";
       return { name: toIdentifier(label, `field${index + 1}`), label: titleCase(label), type, required: index === 0 };
     });
-}
-
-function inferFallbackFields(prompt = "", entity = "Record") {
-  const text = String(prompt).toLowerCase();
-  if (/\b(trip|travel|tour|itinerary)\b/.test(text)) {
-    return [
-      { name: "tripName", label: "Trip Name", type: "text", required: true },
-      { name: "destination", label: "Destination", type: "text", required: true },
-      { name: "startDate", label: "Start Date", type: "date", required: true },
-      { name: "endDate", label: "End Date", type: "date", required: true },
-      { name: "budget", label: "Budget", type: "number", required: false },
-      { name: "travelers", label: "Travelers", type: "number", required: false },
-      { name: "tripStatus", label: "Trip Status", type: "select", required: true, options: ["Planned", "Confirmed", "In Progress", "Completed", "Cancelled"] },
-    ];
-  }
-  const label = titleCase(entity || "Record");
-  return [
-    { name: toIdentifier(`${label} Name`, "name"), label: `${label} Name`, type: "text", required: true },
-    { name: "status", label: "Status", type: "select", required: true, options: ["Active", "Pending", "Completed"] },
-    { name: "date", label: "Date", type: "date", required: false },
-    { name: "notes", label: "Notes", type: "textarea", required: false },
-  ];
 }
 
 function applyPromptAppearance(config, prompt = "") {
@@ -127,14 +90,29 @@ function applyPromptAppearance(config, prompt = "") {
 
 function buildCompatibilityConfig(prompt = "") {
   const config = clone(GENERIC_TEMPLATE);
-  const names = deriveNames(prompt);
-  config.appName = names.appName;
-  config.entity = names.entity;
+  const baseProfile = resolveDomainProfile(prompt);
+  const explicitFields = extractExplicitFields(prompt);
+  const profile = bindProfileToFields(baseProfile, explicitFields.length ? explicitFields : baseProfile.fields, { explicit: explicitFields.length > 0 });
+  config.appName = profile.appName;
+  config.entity = profile.entity;
+  config.entityPlural = profile.plural;
+  config.domain = profile.domain;
+  config.logo = profile.logo;
   config.appType = toIdentifier(config.appName, "records");
-  config.emptyState = `No ${config.entity.toLowerCase()} records yet`;
-  config.cta = `Add ${config.entity}`;
-  const fields = extractExplicitFields(prompt);
-  config.fields = fields.length ? fields : inferFallbackFields(prompt, config.entity);
+  config.emptyState = `No ${profile.plural.toLowerCase()} added yet`;
+  config.cta = `Add ${profile.entity}`;
+  config.fields = profile.fields;
+  config.profileKey = profile.key;
+  // Shell modules and the record fields they read from (charts, calendar, ...).
+  config.shell = {
+    modules: profile.modules,
+    statusField: profile.statusField,
+    categoryField: profile.categoryField,
+    dateField: profile.dateField,
+    amountField: profile.amountField,
+    highlights: profile.highlights || [],
+    icon: profile.icon || "folder_copy",
+  };
   applyPromptAppearance(config, prompt);
 
   if (/\b(login|log in|sign in|signin|signup|sign up|register|role[- ]based|permissions?|user roles?)\b/i.test(prompt)) {

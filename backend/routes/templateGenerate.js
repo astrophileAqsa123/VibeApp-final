@@ -1,26 +1,84 @@
 const express = require("express");
+
 const {
   generateExact500CrudTemplate,
   findBestTemplate,
 } = require("../services/exact500AppTemplates");
 
-const { sanitizeGeneratedFlutterCode } = require('../services/exact500AppTemplates/flutterCodeSafety');
-const { generateFlutterCode } = require("../services/aiService");
-const { buildFlutterCrudApp } = require("../services/exact500AppTemplates/uniqueFlutterCrudFactory");
-const { buildFlutterSupabaseCrudApp } = require("../services/exact500AppTemplates/supabaseCrudFactory");
-const { analyzeAppPrompt } = require("../services/aiTemplateRouter");
-const { normalizeAppSpec } = require("../services/appSpec");
-const { planApplication } = require("../services/ai/componentPlanner");
-const { buildMultiEntityFlutterApp } = require("../services/multiEntityFlutterCompiler");
-const { normalizeUiPreset, inferUiPresetFromPrompt } = require("../services/uiPresets");
-const { getContextAwarePlan } = require("../services/contextAwareAppPlanner");
-const { buildContextAwareFlutterApp } = require("../services/contextAwareFlutterFactory");
-const { buildArchitectBlueprint } = require("../services/ai/appArchitectAgent");
-const { buildWorkspaceComponentSpec } = require("../services/ai/workspaceComponentSpec");
+const {
+  sanitizeGeneratedFlutterCode,
+} = require("../services/exact500AppTemplates/flutterCodeSafety");
+
+const {
+  generateFlutterCode,
+} = require("../services/aiService");
+
+const {
+  generateCustomFlutterCode,
+  editFlutterCodeWithClaude,
+  selfHealGenerationFailure,
+  getValidationDetails,
+} = require("../services/claudeCodeService");
+
+const {
+  buildFlutterCrudApp,
+} = require("../services/exact500AppTemplates/uniqueFlutterCrudFactory");
+
+const {
+  buildFlutterSupabaseCrudApp,
+} = require("../services/exact500AppTemplates/supabaseCrudFactory");
+
+const {
+  analyzeAppPrompt,
+} = require("../services/aiTemplateRouter");
+
+const {
+  normalizeAppSpec,
+} = require("../services/appSpec");
+
+const {
+  planApplication,
+} = require("../services/ai/componentPlanner");
+
+const {
+  normalizeUiPreset,
+  inferUiPresetFromPrompt,
+} = require("../services/uiPresets");
+
+const {
+  buildStructuredProject,
+  generateStructuredFlutterProject,
+  filesToManifest,
+} = require("../services/flutterProjectStructure");
+
+const {
+  getContextAwarePlan,
+} = require("../services/contextAwareAppPlanner");
+
+const {
+  buildContextAwareFlutterApp,
+} = require("../services/contextAwareFlutterFactory");
+
+const {
+  buildArchitectBlueprint,
+} = require("../services/ai/appArchitectAgent");
+
+const {
+  buildWorkspaceComponentSpec,
+} = require("../services/ai/workspaceComponentSpec");
+
+const {
+  buildMultiEntityFlutterApp,
+} = require("../services/multiEntityFlutterCompiler");
+
 const auth = require("../middleware/authMiddleware");
-const { createRateLimiter } = require("../middleware/rateLimit");
+
+const {
+  createRateLimiter,
+} = require("../middleware/rateLimit");
 
 const router = express.Router();
+
 const generationLimiter = createRateLimiter({
   windowMs: 60_000,
   max: 12,
@@ -45,811 +103,2472 @@ const EXTERNAL_FEATURE_MESSAGE =
   "VibeApp can generate Flutter CRUD apps, but external integrations such as Firebase, Supabase, payments, maps, camera, push notifications, PDF/Excel export, or backend database setup are not supported in this version.";
 
 const TOO_COMPLEX_MESSAGE =
-  "This app idea is too large to generate in one go. VibeApp generates single-screen Flutter CRUD apps. Break it into smaller pieces — for example, start with just the core record-management screen, then add features one at a time using the chat editor.";
+  "This app idea is too large to generate in one go. Break it into smaller pieces — for example, start with just the core record-management screen, then add features one at a time using the chat editor.";
 
-// Signals that a prompt is asking for something too large for a single main.dart
-const COMPLEXITY_SIGNALS = [
-  // Multi-screen / multi-module indicators
-  "multiple screens", "multiple pages", "many screens", "many pages",
-  "full app", "complete app", "entire app", "whole app",
-  "all features", "all modules", "all screens",
-  "multi-module", "multimodule", "multi module",
-  // Role-based systems
-  "admin panel", "admin dashboard", "admin portal",
-  "user roles", "role-based", "role based", "permissions system",
-  "super admin", "multi user", "multiuser",
-  // Structural complexity (ordinary product categories such as CRM,
-  // e-commerce, POS, and booking are valid and can use in-memory services).
-  "multi-vendor", "super admin",
-  // Too many explicit screens listed
-  "home screen", // if combined with several others it's a signal — counted below
+
+/* ============================================================
+   CLAUDE / SONNET ROUTING
+   ============================================================ */
+
+const SIMPLE_LIBRARY_DOMAIN_WORDS = [
+  "hospital",
+  "clinic",
+
+  "student",
+  "school",
+  "college",
+  "university",
+
+  "patient",
+  "doctor",
+  "pharmacy",
+
+  "inventory",
+  "warehouse",
+  "stock",
+
+  "product",
+  "products",
+
+  "expense",
+  "expenses",
+
+  "task",
+  "tasks",
+  "todo",
+
+  "customer",
+  "customers",
+
+  "employee",
+  "employees",
+  "staff",
+
+  "teacher",
+  "teachers",
+
+  "appointment",
+  "appointments",
+
+  "booking",
+  "bookings",
+
+  "restaurant",
+  "cafe",
+  "hotel",
+
+  "library",
+  "books",
+
+  "gym",
+  "fitness",
+
+  "crm",
+  "sales",
+
+  "invoice",
+  "invoices",
+
+  "vendor",
+  "vendors",
+
+  "property",
+  "properties",
+
+  "project",
+  "projects",
+
+  "event",
+  "events",
+
+  "payroll",
+  "hr",
+
+  "leave",
+
+  "members",
+  "membership",
+
+  "contacts",
+  "notes",
+
+  "recipes",
+
+  "habit",
+  "habits",
+
+  "attendance",
+
+  "fees",
+  "fee",
+
+  "billing",
+  "accounting",
 ];
 
-// Count how many distinct "screen" or "page" words appear
+const CUSTOM_REQUIREMENT_MARKERS = [
+  "with",
+  "include",
+  "including",
+
+  "feature",
+  "features",
+
+  "function",
+  "functions",
+  "functionality",
+
+  "require",
+  "requires",
+  "required",
+  "requirement",
+
+  "field",
+  "fields",
+
+  "screen",
+  "screens",
+
+  "page",
+  "pages",
+
+  "role",
+  "roles",
+
+  "permission",
+  "permissions",
+
+  "workflow",
+  "workflows",
+
+  "calculator",
+  "calculate",
+  "calculation",
+
+  "stopwatch",
+  "timer",
+
+  "converter",
+
+  "quiz",
+  "game",
+
+  "tool",
+  "utility",
+];
+
+function isSimpleLibraryPrompt(prompt = "") {
+  const cleaned = String(prompt || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!cleaned) {
+    return false;
+  }
+
+  const words = cleaned.split(/\s+/);
+
+  if (words.length > 8) {
+    return false;
+  }
+
+  for (const marker of CUSTOM_REQUIREMENT_MARKERS) {
+    if (
+      words.includes(marker) ||
+      cleaned.includes(` ${marker} `)
+    ) {
+      return false;
+    }
+  }
+
+  if (/[,;:]/.test(cleaned)) {
+    return false;
+  }
+
+  const hasDomain =
+    SIMPLE_LIBRARY_DOMAIN_WORDS.some(
+      (domain) => words.includes(domain)
+    );
+
+  if (!hasDomain) {
+    return false;
+  }
+
+  const hasManagementIntent =
+    /management|manager|manage|crud|tracker|tracking|records|record|catalog|inventory|booking|appointments|billing|attendance|system|app|application/i.test(
+      cleaned
+    );
+
+  return hasManagementIntent;
+}
+
+
+/* ============================================================
+   EXISTING COMPLEXITY DETECTION
+   ============================================================ */
+
+const COMPLEXITY_SIGNALS = [
+  "multiple screens",
+  "multiple pages",
+  "many screens",
+  "many pages",
+  "full app",
+  "complete app",
+  "entire app",
+  "whole app",
+  "all features",
+  "all modules",
+  "all screens",
+  "multi-module",
+  "multimodule",
+  "multi module",
+
+  "admin panel",
+  "admin dashboard",
+  "admin portal",
+  "user roles",
+  "role-based",
+  "role based",
+  "permissions system",
+  "super admin",
+  "multi user",
+  "multiuser",
+
+  "multi-vendor",
+  "super admin",
+
+  "home screen",
+];
+
 function countScreenMentions(text) {
-  const matches = text.match(/\b\w+\s+(screen|page|view|panel|dashboard|module)\b/gi);
+  const matches = text.match(
+    /\b\w+\s+(screen|page|view|panel|dashboard|module)\b/gi
+  );
+
   return matches ? matches.length : 0;
 }
 
 function isTooBigPrompt(prompt = "") {
   const text = prompt.toLowerCase();
 
-  // Hard keyword match
   for (const signal of COMPLEXITY_SIGNALS) {
-    if (text.includes(signal)) return true;
+    if (text.includes(signal)) {
+      return true;
+    }
   }
 
-  // More than 4 distinct screen/page/view mentions in one prompt
-  if (countScreenMentions(text) >= 4) return true;
-
-  // Prompt itself is excessively long (> 400 chars = someone describing a full system)
-  if (prompt.length > 400) return true;
+  if (countScreenMentions(text) >= 4) {
+    return true;
+  }
 
   return false;
 }
 
-function isMultiEntityPrompt(prompt = "") {
-  const text = cleanPrompt(prompt).toLowerCase();
-  if (!text) return false;
-  if (/\bentities\s*:/.test(text)) return true;
-  if (/\b(full\s+crud\s+for\s+(?:every|each|all)\s+entit|multiple\s+related\s+entities|multi[- ]entity)\b/.test(text)) return true;
-  const relationshipIntent = /\b(many[- ]to[- ]many|one[- ]to[- ]many|belongs\s+to|relationship\s+management|referential\s+integrity|has\s+many|have\s+many|contains\s+many)\b/.test(text);
-  const crudIntent = /\b(crud|create|edit|delete|manage|management)\b/.test(text);
-  return relationshipIntent && crudIntent;
-}
+
+/* ============================================================
+   EMPTY PROMPT DETECTION
+   ============================================================ */
 
 function cleanPrompt(prompt = "") {
-  return String(prompt || "").replace(/\s+/g, " ").trim();
+  return String(prompt || "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function isEmptyPrompt(prompt = "") {
   return !cleanPrompt(prompt);
 }
 
-function isExternalFeatureReason(reason = "") {
-  const text = String(reason || "").toLowerCase();
-  return (
-    text.includes("unsupported integration") ||
-    text.includes("external feature") ||
-    text.includes("firebase") ||
-    text.includes("supabase") ||
-    text.includes("payment") ||
-    text.includes("maps") ||
-    text.includes("camera") ||
-    text.includes("backend") ||
-    text.includes("database")
-  );
-}
 
-function buildUnsupportedResponse(prompt, result = {}, type = null) {
-  const reason = result.reason || result.message || "Unsupported request.";
-  const externalFeature = isExternalFeatureReason(reason);
+/* ============================================================
+   RESPONSE HELPERS
+   ============================================================ */
 
-  if (isEmptyPrompt(prompt)) {
-    return {
-      success: false,
-      unsupported: true,
-      shouldFallback: false,
-      type: "empty_prompt",
-      message: EMPTY_PROMPT_MESSAGE,
-      reason,
-      suggestions: SUPPORTED_EXAMPLES,
-      meta: result.meta || {},
-    };
-  }
-
-  if (type === "too_complex" || isTooBigPrompt(prompt)) {
-    return {
-      success: false,
-      unsupported: true,
-      shouldFallback: false,
-      type: "too_complex",
-      message: TOO_COMPLEX_MESSAGE,
-      tip: "Start simple: describe one screen with a few fields. Use the chat editor after generation to add more.",
-      suggestions: SUPPORTED_EXAMPLES,
-      meta: result.meta || {},
-    };
-  }
-
-  if (externalFeature) {
-    return {
-      success: false,
-      unsupported: true,
-      shouldFallback: false,
-      type: "unsupported_external_feature",
-      message: EXTERNAL_FEATURE_MESSAGE,
-      reason,
-      supportedScope:
-        "Flutter CRUD apps with template matching, colors/themes, fields, layouts, title/logo changes, and common local UI screens.",
-      suggestions: [
-        "Create product inventory app with orders and customer records",
-        "Create student management app with login screen and blue theme",
-        "Create appointment booking CRUD app with date, phone and status fields",
-        "Create notes app with title, content and category fields",
-      ],
-      meta: result.meta || {},
-    };
-  }
-
+function buildUnsupportedResponse(prompt, extra = {}) {
   return {
     success: false,
     unsupported: true,
     shouldFallback: false,
-    type: "unsupported_app_concept",
-    message: CRUD_SCOPE_MESSAGE,
-    reason,
-    supportedScope:
-      "VibeApp currently supports Flutter CRUD / record-management apps such as students, inventory, notes, expenses, appointments, tasks, customers, bookings, staff, vendors, invoices, and similar apps.",
+    type: "unsupported_prompt",
+    message: EMPTY_PROMPT_MESSAGE,
+    prompt,
     suggestions: SUPPORTED_EXAMPLES,
-    meta: result.meta || {},
+    ...extra,
   };
 }
 
-// V2 planning boundary: AI may describe the application with registered
-// components, but it cannot return or mutate Flutter source code here.
-router.post("/component-plan", auth, generationLimiter, async (req, res) => {
-  try {
-    const prompt = cleanPrompt(req.body?.prompt);
-    if (!prompt) {
-      return res.status(400).json({ success: false, message: "Prompt is required." });
-    }
-    const plan = await planApplication(prompt);
-    return res.status(plan.ready ? 200 : 422).json({
-      success: plan.ready,
-      ...plan,
-    });
-  } catch (error) {
-    console.error("component-plan error:", error);
-    return res.status(422).json({
-      success: false,
-      ready: false,
-      message: error.message || "The application plan could not be validated.",
-      validationErrors: error.validationErrors || [],
-    });
-  }
-});
-
-function applyAiPlanToTemplate(rawTemplate, aiPlan, originalPrompt = "") {
-  if (!rawTemplate || !aiPlan) return rawTemplate;
-  const template = JSON.parse(JSON.stringify(rawTemplate));
-
-  // Explicit fields remain exact, while short prompts receive AI-inferred
-  // domain fields instead of the generic Title/Description/Status fallback.
-  if (Array.isArray(aiPlan.fields) && aiPlan.fields.length > 0) {
-    template.fields = aiPlan.fields;
-  }
-
-  if (aiPlan.appName) {
-    template.appName = aiPlan.appName;
-  }
-  if (aiPlan.entity) {
-    template.entity = aiPlan.entity;
-    template.emptyState = `No ${aiPlan.entity.toLowerCase()} records yet`;
-    template.cta = `Add ${aiPlan.entity}`;
-  }
-
-  if (aiPlan.theme) {
-    if (typeof aiPlan.theme === "object" && aiPlan.theme.primary && aiPlan.theme.background) {
-      template.theme = {
-        primary: aiPlan.theme.primary,
-        secondary: aiPlan.theme.secondary || aiPlan.theme.primary,
-        background: aiPlan.theme.background,
-        surface: aiPlan.theme.surface || (aiPlan.theme.isLight ? "#FFFFFF" : "#0F172A"),
-        text: aiPlan.theme.text || (aiPlan.theme.isLight ? "#1C1917" : "#FFFFFF"),
-        accent: aiPlan.theme.accent || aiPlan.theme.primary,
-      };
-    } else if (typeof aiPlan.theme === "string") {
-      const THEMES = {
-        blue: { primary: "#2563EB", secondary: "#38BDF8", background: "#EFF6FF", surface: "#FFFFFF", text: "#0F172A", accent: "#60A5FA" },
-        emerald: { primary: "#059669", secondary: "#10B981", background: "#022C22", surface: "#064E3B", text: "#ECFDF5", accent: "#34D399" },
-        green: { primary: "#10B981", secondary: "#34D399", background: "#022C22", surface: "#064E3B", text: "#FFFFFF", accent: "#6EE7B7" },
-        orange: { primary: "#F97316", secondary: "#FB923C", background: "#1C0700", surface: "#431407", text: "#FFFFFF", accent: "#FDBA74" },
-        sunset: { primary: "#F97316", secondary: "#EC4899", background: "#1C0700", surface: "#431407", text: "#FFFFFF", accent: "#FDBA74" },
-        dark: { primary: "#38BDF8", secondary: "#A855F7", background: "#020617", surface: "#0F172A", text: "#FFFFFF", accent: "#22D3EE" },
-        purple: { primary: "#8B5CF6", secondary: "#C084FC", background: "#0F0728", surface: "#1E1045", text: "#FFFFFF", accent: "#A78BFA" },
-        cyan: { primary: "#06B6D4", secondary: "#22D3EE", background: "#083344", surface: "#155E75", text: "#FFFFFF", accent: "#67E8F9" },
-        red: { primary: "#EF4444", secondary: "#F97316", background: "#1F0505", surface: "#2A0C0C", text: "#FFFFFF", accent: "#FCA5A5" },
-        beige: { primary: "#D2B48C", secondary: "#A67C52", background: "#F5F5DC", surface: "#FFFFFF", text: "#292524", accent: "#C19A6B" },
-        white: { primary: "#111827", secondary: "#2563EB", background: "#F8FAFC", surface: "#FFFFFF", text: "#0F172A", accent: "#2563EB" },
-      };
-      const tKey = Object.keys(THEMES).find((k) => aiPlan.theme.toLowerCase().includes(k));
-      if (tKey) {
-        template.theme = THEMES[tKey];
-      } else if (/^#[0-9a-fA-F]{6}$/.test(aiPlan.theme)) {
-        template.theme = {
-          primary: aiPlan.theme,
-          secondary: "#22D3EE",
-          background: "#020617",
-          surface: "#0F172A",
-          text: "#FFFFFF",
-          accent: aiPlan.theme,
-        };
-      }
-    }
-  }
-
-  template.uiPreset = normalizeUiPreset(aiPlan.uiPreset || inferUiPresetFromPrompt(originalPrompt, template.uiPreset || "modern"));
-
-  if (aiPlan.layout) {
-    if (aiPlan.layout.includes("grid")) {
-      template.layout = "catalog_grid";
-      template.uiVariant = 21;
-    } else if (aiPlan.layout.includes("table")) {
-      template.layout = "ledger_table";
-      template.uiVariant = 31;
-    } else if (aiPlan.layout.includes("timeline")) {
-      template.layout = "timeline_rail";
-      template.uiVariant = 41;
-    } else if (aiPlan.layout.includes("board") || aiPlan.layout.includes("kanban")) {
-      template.layout = "kanban_board";
-      template.uiVariant = 51;
-    } else if (aiPlan.layout.includes("list")) {
-      template.layout = "card_stack";
-      template.uiVariant = 11;
-    }
-  }
-
-  const promptRequestsAuth = /\b(login|log in|sign in|signin|authentication|auth|role[- ]based|permissions?)\b/i.test(originalPrompt);
-  if (aiPlan.auth?.enabled || promptRequestsAuth) {
-    template.features = {
-      ...(template.features || {}),
-      hasAuth: true,
-      allowSignup: aiPlan.auth?.allowSignup !== false || /\b(sign ?up|signup|register|create account)\b/i.test(originalPrompt),
-      roles: Array.isArray(aiPlan.auth.roles) && aiPlan.auth.roles.length
-        ? aiPlan.auth.roles
-        : (() => {
-            const inferred = buildArchitectBlueprint(originalPrompt).roles.map((role) => role.label);
-            return inferred.length ? inferred : ["User", "Administrator"];
-          })(),
-    };
-  }
-
-  return normalizeAppSpec(template, { storageMode: template.storageMode || "local" }).spec;
+function buildTooComplexResponse(prompt, extra = {}) {
+  return {
+    success: false,
+    unsupported: true,
+    shouldFallback: false,
+    type: "too_complex",
+    message: TOO_COMPLEX_MESSAGE,
+    prompt,
+    suggestions: SUPPORTED_EXAMPLES,
+    ...extra,
+  };
 }
 
-router.post("/hybrid-generate", auth, generationLimiter, async (req, res) => {
+function buildExternalFeatureResponse(prompt, extra = {}) {
+  return {
+    success: false,
+    unsupported: true,
+    shouldFallback: false,
+    type: "external_feature",
+    message: EXTERNAL_FEATURE_MESSAGE,
+    prompt,
+    suggestions: SUPPORTED_EXAMPLES,
+    ...extra,
+  };
+}
+
+
+/* ============================================================
+   EXTERNAL FEATURE DETECTION
+   ============================================================ */
+
+function containsExternalFeature(prompt = "") {
+  const text = String(prompt || "").toLowerCase();
+
+  const externalFeatures = [
+    "firebase",
+    "supabase",
+    "payment",
+    "payments",
+    "stripe",
+    "paypal",
+    "maps",
+    "google maps",
+    "camera",
+    "push notification",
+    "push notifications",
+    "notification",
+    "notifications",
+    "pdf export",
+    "excel export",
+    "csv export",
+    "backend database",
+    "database setup",
+    "api integration",
+    "rest api",
+    "authentication server",
+    "cloud storage",
+  ];
+
+  return externalFeatures.some(
+    (feature) => text.includes(feature)
+  );
+}
+
+
+/* ============================================================
+   JSON / AI RESPONSE HELPERS
+   ============================================================ */
+
+function safeJsonParse(value) {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === "object") {
+    return value;
+  }
+
+  const text = String(value).trim();
+
   try {
-    const { prompt } = req.body || {};
-    const finalPrompt = cleanPrompt(prompt);
+    return JSON.parse(text);
+  } catch (_) {
+    // Continue with extraction.
+  }
 
-    // Empty prompt — reject immediately, no AI call needed
-    if (isEmptyPrompt(finalPrompt)) {
-      return res.status(200).json(buildUnsupportedResponse(finalPrompt, {}));
+  const firstBrace = text.indexOf("{");
+  const lastBrace = text.lastIndexOf("}");
+
+  if (
+    firstBrace >= 0 &&
+    lastBrace > firstBrace
+  ) {
+    try {
+      return JSON.parse(
+        text.slice(
+          firstBrace,
+          lastBrace + 1
+        )
+      );
+    } catch (_) {
+      return null;
     }
+  }
 
-    // Large prompts are intentionally allowed. They are routed through the AI
-    // path and implemented as a production-style in-memory product when an
-    // external backend or platform service is not available in preview.
+  return null;
+}
 
-    // Workspace requests still use the contextual architect for domain/role intent,
-    // but rendering must go through the component library + AppSpec compiler first.
-    // This preserves the rich reusable Material components, CRUD behaviour and
-    // multi-colour product UI instead of replacing the app with a thin generic shell.
-    const architectFirstPlan = getContextAwarePlan(finalPrompt);
-    if (architectFirstPlan?.family === "workspace") {
-      const architectRoleMode = architectFirstPlan.featurePolicies?.roleBased === true && Array.isArray(architectFirstPlan.roles) && architectFirstPlan.roles.length > 0;
+function normalizePromptResult(result) {
+  if (!result) {
+    return null;
+  }
 
-      // Role-based management workspaces must use the architect-backed AppSpec as
-      // the source of truth. A generic AI component plan can omit authentication,
-      // roles, dashboard permissions, or role navigation even when the architect
-      // correctly inferred them. That previously caused management apps to open
-      // directly on CRUD lists instead of Splash -> Login -> Role -> Dashboard.
-      if (!architectRoleMode) try {
-        const componentPlan = await planApplication(finalPrompt);
-        if (componentPlan?.ready && Array.isArray(componentPlan.spec?.entities) && componentPlan.spec.entities.length) {
-          const compiled = buildMultiEntityFlutterApp(componentPlan.spec);
-          const safeCode = sanitizeGeneratedFlutterCode(compiled.code);
-          return res.json({
-            success: true,
-            code: safeCode,
-            generatedCode: safeCode,
-            source: "component-library-workspace",
+  if (typeof result === "object") {
+    return result;
+  }
+
+  return safeJsonParse(result);
+}
+
+
+/* ============================================================
+   GROQ SPECIFICATION
+   ============================================================ */
+
+/*
+ * IMPORTANT:
+ *
+ * The existing VibeApp Groq integration is:
+ *
+ *     analyzeAppPrompt()
+ *
+ * imported from:
+ *
+ *     ../services/aiTemplateRouter
+ *
+ * DO NOT dynamically search for a "groqService".
+ *
+ * This function intentionally keeps the existing Groq
+ * implementation as the single source of the application
+ * specification.
+ */
+
+async function getGroqAppSpec(prompt) {
+  console.log(
+    "[Groq] Starting application specification generation..."
+  );
+
+  const result =
+    await analyzeAppPrompt(prompt);
+
+  const normalized =
+    normalizePromptResult(result);
+
+  if (!normalized) {
+    throw new Error(
+      "Groq returned an empty or invalid application specification."
+    );
+  }
+
+  console.log(
+    "[Groq] Application specification successfully prepared."
+  );
+
+  return normalized;
+}
+
+
+/* ============================================================
+   INITIAL GENERATION SELF-HEALING
+   ============================================================ */
+
+async function recoverInitialGeneration({
+  prompt,
+  error,
+  partialCode = "",
+  supabaseConfig = null,
+  appSpec = null,
+}) {
+  const normalizedError =
+    String(error || "").trim();
+
+  const normalizedCode =
+    String(partialCode || "").trim();
+
+  console.warn(
+    "Initial generation failed. Starting Claude/Sonnet self-healing recovery.",
+    normalizedError
+  );
+
+  const recoveredCode =
+    await selfHealGenerationFailure({
+      prompt,
+      error: normalizedError,
+      partialCode: normalizedCode,
+      supabaseConfig,
+      appSpec,
+      attempt: 1,
+    });
+
+  const validation =
+    getValidationDetails(
+      recoveredCode,
+      "self-healed Flutter generation"
+    );
+
+  if (!validation.valid) {
+    throw new Error(
+      `Claude self-healing returned invalid Flutter code: ${validation.errors.join(", ")}`
+    );
+  }
+
+  return validation.clean;
+}
+
+
+/* ============================================================
+   DIRECT MULTI-FILE CLAUDE GENERATION
+   ============================================================ */
+
+async function generateCustomStructuredProject({
+  prompt,
+  appSpec,
+  supabaseConfig = null,
+}) {
+  if (!appSpec) {
+    throw new Error(
+      "Groq application specification is required before Claude/Sonnet generation."
+    );
+  }
+
+  console.log(
+    "[Claude/Sonnet] Starting direct multi-file Flutter generation..."
+  );
+
+  const result =
+    await generateStructuredFlutterProject({
+      prompt,
+      appSpec,
+      supabaseConfig,
+    });
+
+  if (
+    !result ||
+    !Array.isArray(result.files) ||
+    result.files.length === 0
+  ) {
+    throw new Error(
+      "Claude/Sonnet did not return a valid multi-file Flutter project."
+    );
+  }
+
+  const entrypoint =
+    result.entrypoint ||
+    "lib/main.dart";
+
+  const mainFile =
+    result.files.find(
+      (file) =>
+        file.path === entrypoint ||
+        file.path === "lib/main.dart"
+    );
+
+  if (!mainFile || !mainFile.content) {
+    throw new Error(
+      "Claude/Sonnet multi-file project does not contain lib/main.dart."
+    );
+  }
+
+  console.log(
+    `[Claude/Sonnet] Multi-file Flutter project generated successfully: ${result.files.length} files`
+  );
+
+  return {
+    ...result,
+    entrypoint,
+    files: result.files,
+  };
+}
+
+
+/* ============================================================
+   ROUTE: HYBRID GENERATE
+   ============================================================ */
+
+router.post(
+  "/hybrid-generate",
+  auth,
+  generationLimiter,
+  async (req, res) => {
+    try {
+      const {
+        prompt,
+      } = req.body || {};
+
+      const finalPrompt =
+        cleanPrompt(prompt);
+
+      if (
+        isEmptyPrompt(finalPrompt)
+      ) {
+        return res.status(200).json(
+          buildUnsupportedResponse(
+            finalPrompt
+          )
+        );
+      }
+
+
+      /* ======================================================
+         SIMPLE MANAGEMENT PROMPT
+         -> COMPONENT LIBRARY
+         ====================================================== */
+
+      if (
+        isSimpleLibraryPrompt(
+          finalPrompt
+        )
+      ) {
+        try {
+          console.log(
+            `Routing simple management prompt to component library: "${finalPrompt}"`
+          );
+
+          const libraryResult =
+            generateExact500CrudTemplate(
+              finalPrompt
+            );
+
+          if (
+            libraryResult &&
+            libraryResult.success &&
+            libraryResult.code
+          ) {
+            const code =
+              sanitizeGeneratedFlutterCode(
+                libraryResult.code
+              );
+
+            /*
+             * IMPORTANT FIX:
+             *
+             * buildStructuredProject() accepts
+             * mainCode as a STRING.
+             *
+             * Do NOT pass an object here.
+             */
+
+            const structured =
+              buildStructuredProject(code);
+
+            return res.json({
+              success: true,
+
+              code,
+
+              generatedCode:
+                code,
+
+              projectFiles:
+                structured.files,
+
+              fileManifest:
+                filesToManifest(
+                  structured.files
+                ),
+
+              entrypoint:
+                structured.entrypoint ||
+                "lib/main.dart",
+
+              source:
+                "component-library-simple-prompt",
+
+              unsupported:
+                false,
+
+              shouldFallback:
+                false,
+
+              storageMode:
+                "local",
+
+              appConfig:
+                libraryResult.meta?.rawTemplate ||
+                libraryResult.meta ||
+                null,
+
+              meta: {
+                ...(libraryResult.meta || {}),
+
+                generationRoute:
+                  "component-library",
+
+                simplePrompt:
+                  true,
+              },
+            });
+          }
+
+        } catch (libraryError) {
+          console.error(
+            "[VibeApp] Component Library generation failed. Claude fallback is disabled for simple library prompts:",
+            libraryError.message
+          );
+
+          return res.status(503).json({
+            success: false,
             unsupported: false,
             shouldFallback: false,
-            storageMode: componentPlan.spec?.app?.storageMode || "local",
-            appConfig: componentPlan.spec,
-            appSpec: componentPlan.spec,
-            requirements: componentPlan.requirements || [],
-            componentPlan: componentPlan.componentPlan || [],
-            missingCapabilities: componentPlan.missingCapabilities || [],
-            coverage: componentPlan.coverage || null,
-            warnings: componentPlan.warnings || [],
-            assumptions: componentPlan.assumptions || [],
-            fileManifest: compiled.fileManifest,
-            entrypoint: compiled.entrypoint,
-            meta: {
-              appName: componentPlan.spec?.app?.name || architectFirstPlan.appName,
-              domain: architectFirstPlan.domain,
-              roles: architectFirstPlan.roles.map((role) => role.label),
-              componentLibrary: true,
-              architectGuided: true,
-              entityCount: componentPlan.spec.entities.length,
-            },
+            type:
+              "component_library_generation_error",
+            message:
+              libraryError.message ||
+              "The requested standard application could not be generated from the Component Library.",
+            reason:
+              "This prompt was classified as a standard Component Library application. Groq and Claude fallback are intentionally disabled.",
+            source:
+              "component-library-simple-prompt",
+            claudeUsed:
+              false,
+            groqUsed:
+              false,
+            generationRoute:
+              "component-library",
           });
         }
-        console.warn("Workspace AI component plan was incomplete; using deterministic component blueprint.");
-      } catch (componentError) {
-        console.warn("Workspace AI component planning failed; using deterministic component blueprint:", componentError.message);
       }
 
-      // Deterministic component-library fallback. This still goes through AppSpec
-      // and the reusable multi-entity compiler; it does NOT fall back to the thin
-      // generic workspace UI merely because the planning model is unavailable.
+
+      /* ======================================================
+         CUSTOM / DETAILED / UTILITY PROMPT
+         -> GROQ -> CLAUDE / SONNET
+         ====================================================== */
+
+      console.log(
+        "=================================================="
+      );
+
+      console.log(
+        "[VibeApp] HYBRID GENERATION"
+      );
+
+      console.log(
+        `Prompt: ${finalPrompt}`
+      );
+
+      console.log(
+        "Route: CUSTOM / GROQ / CLAUDE"
+      );
+
+      console.log(
+        "Supabase: disabled"
+      );
+
+      console.log(
+        "=================================================="
+      );
+
+      console.log(
+        "[VibeApp] Starting Groq specification generation..."
+      );
+
+      let groqAppSpec = null;
+
       try {
-        const deterministicSpec = buildWorkspaceComponentSpec(architectFirstPlan, finalPrompt);
-        const compiled = buildMultiEntityFlutterApp(deterministicSpec);
-        const safeCode = sanitizeGeneratedFlutterCode(compiled.code);
-        return res.json({
-          success: true,
-          code: safeCode,
-          generatedCode: safeCode,
-          source: "component-library-workspace-deterministic",
-          unsupported: false,
-          shouldFallback: false,
-          storageMode: deterministicSpec.app?.storageMode || "memory",
-          appConfig: deterministicSpec,
-          appSpec: deterministicSpec,
-          componentPlan: deterministicSpec.selectedCapabilities || [],
-          fileManifest: compiled.fileManifest,
-          entrypoint: compiled.entrypoint,
-          meta: {
-            appName: deterministicSpec.app?.name || architectFirstPlan.appName,
-            domain: architectFirstPlan.domain,
-            roles: architectFirstPlan.roles.map((role) => role.label),
-            componentLibrary: true,
-            deterministicComponentFallback: true,
-            entityCount: deterministicSpec.entities.length,
-          },
-        });
-      } catch (deterministicError) {
-        console.warn("Deterministic workspace component compilation failed; using final contextual fallback:", deterministicError.message);
-      }
+        groqAppSpec =
+          await getGroqAppSpec(
+            finalPrompt
+          );
 
-      // Final safety fallback only. Normal workspace generation stays on the component compiler.
-      try {
-        const contextual = buildContextAwareFlutterApp(architectFirstPlan);
-        const safeCode = sanitizeGeneratedFlutterCode(contextual.code);
-        return res.json({
-          success: true, code: safeCode, generatedCode: safeCode,
-          source: "contextual-workspace-fallback", unsupported: false, shouldFallback: false, storageMode: "local",
-          appConfig: { ...architectFirstPlan, generationMode: "context-aware", contextual: true },
-          appSpec: {
-            specVersion: 2,
-            app: { id: architectFirstPlan.archetype, name: architectFirstPlan.appName, description: finalPrompt, storageMode: "local" },
-            archetype: architectFirstPlan.archetype, family: architectFirstPlan.family, domain: architectFirstPlan.domain,
-            roles: architectFirstPlan.roles, roleDashboards: architectFirstPlan.roleDashboards,
-            navigation: architectFirstPlan.appBlueprint?.navigation, primaryActions: architectFirstPlan.appBlueprint?.primaryActions,
-            featurePolicies: architectFirstPlan.featurePolicies, screens: architectFirstPlan.appBlueprint?.screens || [],
-          },
-          meta: {
-            appName: architectFirstPlan.appName, archetype: architectFirstPlan.archetype, family: architectFirstPlan.family, domain: architectFirstPlan.domain,
-            roles: architectFirstPlan.roles.map((role) => role.label), screenCount: architectFirstPlan.screenBlueprint.length,
-            featurePolicies: architectFirstPlan.featurePolicies, contextualComposition: true, fallbackOnly: true,
-          },
-        });
-      } catch (architectError) {
-        console.warn("Contextual workspace fallback failed; continuing to existing pipeline:", architectError.message);
-      }
-    }
+        console.log(
+          "[Groq] Specification generation completed."
+        );
 
+        console.log(
+          "[Groq] Specification will now be passed to Claude/Sonnet."
+        );
 
-    // Multi-entity requests use AppSpec V2 and a deterministic compiler. They
-    // must never be silently collapsed to the legacy primary-entity renderer.
-    if (isMultiEntityPrompt(finalPrompt)) {
-      try {
-        const plan = await planApplication(finalPrompt);
-        if (!plan.ready || !Array.isArray(plan.spec?.entities) || plan.spec.entities.length < 2) {
-          return res.status(422).json({
-            success: false,
-            unsupported: true,
-            shouldFallback: false,
-            type: "incomplete_multi_entity_plan",
-            message: "The multi-entity plan was incomplete, so generation was stopped instead of returning a partial app.",
-            requirements: plan.requirements || [],
-            missingCapabilities: plan.missingCapabilities || [],
-            coverage: plan.coverage || null,
-          });
-        }
+      } catch (groqError) {
+        console.error(
+          "[Groq] Specification generation failed:",
+          groqError
+        );
 
-        const compiled = buildMultiEntityFlutterApp(plan.spec);
-        return res.json({
-          success: true,
-          source: "appspec-v2-multi-entity-compiler",
-          code: compiled.code,
-          generatedCode: compiled.code,
-          unsupported: false,
-          shouldFallback: false,
-          storageMode: "local",
-          appConfig: plan.spec,
-          appSpec: plan.spec,
-          requirements: plan.requirements,
-          componentPlan: plan.componentPlan,
-          missingCapabilities: plan.missingCapabilities,
-          coverage: plan.coverage,
-          warnings: plan.warnings || [],
-          assumptions: plan.assumptions || [],
-          fileManifest: compiled.fileManifest,
-          entrypoint: compiled.entrypoint,
-          meta: {
-            appName: plan.spec.app.name,
-            entityCount: plan.spec.entities.length,
-            relationshipCount: plan.spec.relationships.length,
-            compiler: "appspec-v2",
-          },
-        });
-      } catch (planningError) {
-        console.error("Multi-entity planning or compilation failed:", planningError.message);
-        return res.status(422).json({
+        return res.status(503).json({
           success: false,
-          unsupported: true,
-          shouldFallback: false,
-          type: "multi_entity_generation_failed",
-          message: "The complete multi-entity application could not be validated. No partial single-entity app was generated.",
-          reason: planningError.message,
+
+          unsupported:
+            false,
+
+          shouldFallback:
+            false,
+
+          type:
+            "groq_specification_error",
+
+          message:
+            groqError.message ||
+            "Groq could not generate the application specification.",
+
+          reason:
+            "The Groq specification layer is required before Claude/Sonnet custom generation.",
+
+          suggestions:
+            SUPPORTED_EXAMPLES,
         });
       }
-    }
 
-    // Context-aware product composition comes before the generic CRUD/custom-AI split.
-    // It recognizes high-confidence app archetypes (trackers, calculators, finance,
-    // timers, quiz, scheduling, catalog, converters) and generates domain-specific
-    // functionality instead of forcing every request into the same CRUD shell.
-    const contextualPlan = getContextAwarePlan(finalPrompt);
-    if (contextualPlan) {
+
+      /* ======================================================
+         CLAUDE / SONNET DIRECT MULTI-FILE GENERATION
+         ====================================================== */
+
       try {
-        const contextual = buildContextAwareFlutterApp(contextualPlan);
-        const safeCode = sanitizeGeneratedFlutterCode(contextual.code);
+        console.log(
+          "[VibeApp] Passing Groq JSON specification to Claude/Sonnet..."
+        );
+
+        const structured =
+          await generateCustomStructuredProject({
+            prompt:
+              finalPrompt,
+
+            appSpec:
+              groqAppSpec,
+
+            supabaseConfig:
+              null,
+          });
+
+        const entrypoint =
+          structured.entrypoint ||
+          "lib/main.dart";
+
+        const mainFile =
+          structured.files.find(
+            (file) =>
+              file.path === entrypoint ||
+              file.path === "lib/main.dart"
+          );
+
+        const code =
+          mainFile?.content || "";
+
+        if (!code) {
+          throw new Error(
+            "Generated structured Flutter project has no main.dart content."
+          );
+        }
+
+        console.log(
+          "=================================================="
+        );
+
+        console.log(
+          "[VibeApp] HYBRID GENERATION SUCCESS"
+        );
+
+        console.log(
+          `[VibeApp] Generated ${structured.files.length} Flutter project files.`
+        );
+
+        console.log(
+          "[VibeApp] Groq -> Claude -> Multi-file Flutter complete."
+        );
+
+        console.log(
+          "=================================================="
+        );
+
         return res.json({
-          success: true,
-          code: safeCode,
-          generatedCode: safeCode,
-          source: "context-aware-component-composer",
-          unsupported: false,
-          shouldFallback: false,
-          storageMode: "local",
-          appConfig: {
-            ...contextualPlan,
-            generationMode: "context-aware",
-            contextual: true,
-          },
-          appSpec: {
-            specVersion: 2,
-            app: {
-              id: contextualPlan.archetype,
-              name: contextualPlan.appName,
-              description: finalPrompt,
-              storageMode: "local",
-            },
-            archetype: contextualPlan.archetype,
-            family: contextualPlan.family,
-            uiPreset: contextualPlan.uiPreset,
-            theme: contextualPlan.theme,
-            capabilities: contextualPlan.capabilities,
-          },
-          meta: {
-            appName: contextualPlan.appName,
-            appType: contextualPlan.archetype,
-            archetype: contextualPlan.archetype,
-            family: contextualPlan.family,
-            domain: contextualPlan.domain,
-            uiPreset: contextualPlan.uiPreset,
-            capabilities: contextualPlan.capabilities,
-            confidence: contextualPlan.confidence,
-            contextualComposition: true,
-          },
-        });
-      } catch (contextError) {
-        console.warn("Context-aware composition failed; continuing to legacy routes:", contextError.message);
-      }
-    }
+          success:
+            true,
 
-    // 1. Try AI Intent Router to understand what user wants
-    let aiPlan = null;
-    try {
-      aiPlan = await analyzeAppPrompt(finalPrompt);
-    } catch (routerErr) {
-      console.warn("aiTemplateRouter error, falling back to regex matcher:", routerErr.message);
-    }
-
-    // AI-assisted contextual fallback: when regex classification was not enough,
-    // reuse the intent router's archetype/domain hint and still prefer controlled
-    // functional composition over unrestricted whole-app AI generation.
-    const aiContextualPlan = getContextAwarePlan(finalPrompt, aiPlan);
-    if (aiContextualPlan) {
-      try {
-        const contextual = buildContextAwareFlutterApp(aiContextualPlan);
-        const safeCode = sanitizeGeneratedFlutterCode(contextual.code);
-        return res.json({
-          success: true, code: safeCode, generatedCode: safeCode,
-          source: "context-aware-component-composer",
-          unsupported: false, shouldFallback: false, storageMode: "local",
-          appConfig: { ...aiContextualPlan, generationMode: "context-aware", contextual: true },
-          appSpec: {
-            specVersion: 2,
-            app: { id: aiContextualPlan.archetype, name: aiContextualPlan.appName, description: finalPrompt, storageMode: "local" },
-            archetype: aiContextualPlan.archetype, family: aiContextualPlan.family,
-            uiPreset: aiContextualPlan.uiPreset, theme: aiContextualPlan.theme, capabilities: aiContextualPlan.capabilities,
-          },
-          meta: {
-            appName: aiContextualPlan.appName, appType: aiContextualPlan.archetype, archetype: aiContextualPlan.archetype,
-            family: aiContextualPlan.family, domain: aiContextualPlan.domain, uiPreset: aiContextualPlan.uiPreset,
-            capabilities: aiContextualPlan.capabilities, confidence: aiContextualPlan.confidence, contextualComposition: true, aiAssistedClassification: true,
-          },
-        });
-      } catch (contextError) {
-        console.warn("AI-assisted contextual composition failed; continuing to legacy routes:", contextError.message);
-      }
-    }
-
-    // If AI explicitly determined this is NOT a CRUD app (e.g. calculator, stopwatch, game, tool)
-    if (aiPlan && aiPlan.isCrud === false) {
-      console.log(`Prompt identified as non-CRUD custom app, routing to AI code generation: "${finalPrompt}"`);
-      try {
-        const code = await generateFlutterCode(finalPrompt);
-        const safeCode = sanitizeGeneratedFlutterCode(code);
-        return res.json({
-          success: true,
-          code: safeCode,
-          generatedCode: safeCode,
-          source: "groq-ai-custom-app",
-          unsupported: false,
-          shouldFallback: false,
-        });
-      } catch (aiError) {
-        console.error("Groq AI custom app generation failed:", aiError.message);
-      }
-    }
-
-    // If AI identified it as a CRUD app with explicit fields or archetype
-    if (aiPlan && aiPlan.isCrud === true) {
-      const match =
-        findBestTemplate(aiPlan.archetype || "") ||
-        findBestTemplate(aiPlan.appName || "") ||
-        findBestTemplate(finalPrompt);
-
-      if (match?.matched && match?.template) {
-        const assembledTemplate = applyAiPlanToTemplate(match.template, aiPlan, finalPrompt);
-        const code = sanitizeGeneratedFlutterCode(buildFlutterCrudApp(assembledTemplate));
-        return res.json({
-          success: true,
-          source: "ai-intent-template-assembly",
           code,
-          generatedCode: code,
-          unsupported: false,
-          shouldFallback: false,
-          appConfig: assembledTemplate,
+
+          generatedCode:
+            code,
+
+          projectFiles:
+            structured.files,
+
+          fileManifest:
+            filesToManifest(
+              structured.files
+            ),
+
+          entrypoint:
+            entrypoint,
+
+          source:
+            "groq-claude-multifile",
+
+          unsupported:
+            false,
+
+          shouldFallback:
+            false,
+
+          storageMode:
+            "local",
+
+          appSpec:
+            groqAppSpec,
+
           meta: {
-            appType: assembledTemplate.appType,
-            appName: assembledTemplate.appName,
-            entity: assembledTemplate.entity,
-            domain: assembledTemplate.domain,
-            layout: assembledTemplate.layout,
-            uiPreset: assembledTemplate.uiPreset,
-            theme: assembledTemplate.theme,
-            fields: assembledTemplate.fields,
-            fieldCount: assembledTemplate.fields.length,
-            templateMatched: true,
-            appliedAiPlan: true,
-            rawTemplate: assembledTemplate,
+            generationRoute:
+              "groq-claude",
+
+            groqUsed:
+              true,
+
+            claudeUsed:
+              true,
+
+            multiFile:
+              true,
+
+            fileCount:
+              structured.files.length,
           },
         });
-      }
-    }
 
-    // 2. Safe Fallback: Current deterministic template matcher
-    const result = generateExact500CrudTemplate(finalPrompt);
+      } catch (claudeError) {
+        console.error(
+          "[VibeApp] Claude/Sonnet structured generation failed:",
+          claudeError
+        );
 
-    // Template matched — return it
-    if (result.success) {
-      if (result.code) {
-        result.code = sanitizeGeneratedFlutterCode(result.code);
+        /*
+         * Custom prompts are allowed to use targeted
+         * Claude self-healing.
+         *
+         * This is NOT the same as the Component Library
+         * fallback. Simple library prompts never reach
+         * this section.
+         */
+
+        try {
+          const recoveredCode =
+            await recoverInitialGeneration({
+              prompt:
+                finalPrompt,
+
+              error:
+                claudeError.message,
+
+              partialCode:
+                claudeError.partialCode ||
+                "",
+
+              supabaseConfig:
+                null,
+
+              appSpec:
+                groqAppSpec,
+            });
+
+          const structuredRecovery =
+            buildStructuredProject(
+              recoveredCode
+            );
+
+          return res.json({
+            success:
+              true,
+
+            code:
+              recoveredCode,
+
+            generatedCode:
+              recoveredCode,
+
+            projectFiles:
+              structuredRecovery.files,
+
+            fileManifest:
+              filesToManifest(
+                structuredRecovery.files
+              ),
+
+            entrypoint:
+              structuredRecovery.entrypoint ||
+              "lib/main.dart",
+
+            source:
+              "groq-claude-self-healed",
+
+            unsupported:
+              false,
+
+            shouldFallback:
+              false,
+
+            storageMode:
+              "local",
+
+            appSpec:
+              groqAppSpec,
+
+            meta: {
+              generationRoute:
+                "groq-claude-self-healed",
+
+              groqUsed:
+                true,
+
+              claudeUsed:
+                true,
+
+              selfHealed:
+                true,
+
+              multiFile:
+                false,
+            },
+          });
+
+        } catch (recoveryError) {
+          console.error(
+            "[VibeApp] Claude self-healing failed:",
+            recoveryError
+          );
+
+          return res.status(500).json({
+            success:
+              false,
+
+            unsupported:
+              false,
+
+            shouldFallback:
+              false,
+
+            type:
+              "claude_generation_error",
+
+            message:
+              claudeError.message ||
+              "Claude/Sonnet could not generate the requested Flutter application.",
+
+            recoveryError:
+              recoveryError.message,
+
+            source:
+              "groq-claude",
+          });
+        }
       }
-      // Log which matching path was used so we can see how often synonyms/domain help
-      const matchedVia = result.meta?.matchedVia || "exact";
-      if (matchedVia !== "exact") {
-        console.log(`Template matched via ${matchedVia} for prompt: "${finalPrompt}" → ${result.meta?.appName}`);
-      }
-      return res.json({
-        ...result,
-        unsupported: false,
-        shouldFallback: false,
+
+    } catch (error) {
+      console.error(
+        "Hybrid generation error:",
+        error
+      );
+
+      return res.status(500).json({
+        success:
+          false,
+
+        message:
+          error.message ||
+          "Hybrid Flutter generation failed.",
       });
     }
-
-    // All template matching passes failed — including external-feature and
-    // multi-module prompts — fall back to AI, which creates an in-memory
-    // implementation for integrations unavailable in the preview runtime.
-    console.log(`All template passes failed for prompt, trying Groq AI: "${finalPrompt}"`);
-    try {
-      const code = await generateFlutterCode(finalPrompt);
-      const safeCode = sanitizeGeneratedFlutterCode(code);
-      return res.json({
-        success: true,
-        code: safeCode,
-        generatedCode: safeCode,
-        source: "groq-ai-fallback",
-        unsupported: false,
-        shouldFallback: false,
-      });
-    } catch (aiError) {
-      console.error("Groq AI fallback failed:", aiError.message);
-      // AI also failed — now return the unsupported response
-      return res.status(200).json(buildUnsupportedResponse(finalPrompt, result));
-    }
-
-  } catch (error) {
-    console.error("hybrid-generate error:", error);
-
-    return res.status(200).json({
-      success: false,
-      unsupported: true,
-      shouldFallback: false,
-      type: "generation_error",
-      message:
-        "VibeApp could not generate this app. Try a Flutter CRUD app prompt such as student management, inventory, notes, or appointments.",
-      reason: error.message || "Generation failed",
-      suggestions: SUPPORTED_EXAMPLES,
-    });
   }
-});
+);
 
-/* =====================================================
-   Supabase CRUD generation — separate parallel path
-   Reuses template matching, but outputs Supabase-connected code.
-   Does NOT modify or affect the hybrid-generate endpoint above.
-===================================================== */
 
-router.post("/supabase-generate", auth, generationLimiter, async (req, res) => {
-  try {
-    const { prompt, supabaseUrl, supabaseAnonKey, tableName } = req.body || {};
-    const finalPrompt = cleanPrompt(prompt);
+/* ============================================================
+   TEMPLATE ROUTE
+   ============================================================ */
 
-    // Validate required Supabase fields
-    if (!supabaseUrl || !String(supabaseUrl).trim()) {
-      return res.status(400).json({
-        success: false,
-        message: "Supabase Project URL is required.",
-      });
-    }
-
-    if (!supabaseAnonKey || !String(supabaseAnonKey).trim()) {
-      return res.status(400).json({
-        success: false,
-        message: "Supabase Anon Key is required.",
-      });
-    }
-
-    if (isEmptyPrompt(finalPrompt)) {
-      return res.status(200).json(buildUnsupportedResponse(finalPrompt, {}));
-    }
-
-    if (isTooBigPrompt(finalPrompt)) {
-      return res.status(200).json(buildUnsupportedResponse(finalPrompt, {}, "too_complex"));
-    }
-
-    // Sanitize database-specific words so template matcher does not trigger shouldFallback
-    const sanitizedPrompt = finalPrompt
-      .replace(/\b(supabase|firebase|database|postgres|mysql|sqlite|cloud sync|realtime|backend)\b/gi, "")
-      .replace(/\s+/g, " ")
-      .trim();
-    const promptToMatch = sanitizedPrompt.length >= 3 ? sanitizedPrompt : finalPrompt;
-
-    // 1. Try AI Intent Router to extract user's exact fields and template archetype
-    let aiPlan = null;
+router.post(
+  "/template",
+  auth,
+  generationLimiter,
+  async (req, res) => {
     try {
-      aiPlan = await analyzeAppPrompt(finalPrompt);
-    } catch (routerErr) {
-      console.warn("aiTemplateRouter error in supabase-generate, falling back to regex matcher:", routerErr.message);
-    }
+      const {
+        prompt,
+        template,
+        uiPreset,
+      } = req.body || {};
 
-    if (aiPlan && aiPlan.isCrud === true) {
-      const match =
-        findBestTemplate(aiPlan.archetype || "") ||
-        findBestTemplate(aiPlan.appName || "") ||
-        findBestTemplate(promptToMatch) ||
-        findBestTemplate(finalPrompt) ||
-        findBestTemplate("record");
+      const finalPrompt =
+        cleanPrompt(prompt);
 
-      if (match?.matched && match?.template) {
-        const assembledTemplate = applyAiPlanToTemplate(match.template, aiPlan, finalPrompt);
-        const supabaseResult = buildFlutterSupabaseCrudApp({
-          template: assembledTemplate,
-          supabaseUrl: String(supabaseUrl).trim(),
-          supabaseAnonKey: String(supabaseAnonKey).trim(),
-          tableName: tableName ? String(tableName).trim() : (assembledTemplate.tableName || ""),
+      if (
+        isEmptyPrompt(
+          finalPrompt
+        )
+      ) {
+        return res.status(400).json({
+          success:
+            false,
+
+          message:
+            EMPTY_PROMPT_MESSAGE,
         });
+      }
+
+      if (
+        isTooBigPrompt(
+          finalPrompt
+        )
+      ) {
+        return res.status(400).json(
+          buildTooComplexResponse(
+            finalPrompt
+          )
+        );
+      }
+
+      if (
+        containsExternalFeature(
+          finalPrompt
+        )
+      ) {
+        return res.status(400).json(
+          buildExternalFeatureResponse(
+            finalPrompt
+          )
+        );
+      }
+
+      const result =
+        generateExact500CrudTemplate(
+          finalPrompt,
+          template
+        );
+
+      if (
+        result &&
+        result.success &&
+        result.code
+      ) {
+        const code =
+          sanitizeGeneratedFlutterCode(
+            result.code
+          );
+
+        const structured =
+          buildStructuredProject(code);
 
         return res.json({
-          success: true,
-          code: supabaseResult.code,
-          generatedCode: supabaseResult.code,
-          tableSql: supabaseResult.tableSql,
-          tableName: supabaseResult.tableName,
-          source: "ai-intent-supabase-template",
-          storageMode: "supabase",
-          unsupported: false,
-          shouldFallback: false,
-          appConfig: assembledTemplate,
+          success:
+            true,
+
+          code,
+
+          generatedCode:
+            code,
+
+          projectFiles:
+            structured.files,
+
+          fileManifest:
+            filesToManifest(
+              structured.files
+            ),
+
+          entrypoint:
+            structured.entrypoint ||
+            "lib/main.dart",
+
+          source:
+            "component-library",
+
+          unsupported:
+            false,
+
+          shouldFallback:
+            false,
+
+          storageMode:
+            "local",
+
+          appConfig:
+            result.meta?.rawTemplate ||
+            result.meta ||
+            null,
+
           meta: {
-            appType: assembledTemplate.appType,
-            appName: assembledTemplate.appName,
-            entity: assembledTemplate.entity,
-            domain: assembledTemplate.domain,
-            layout: assembledTemplate.layout,
-            uiPreset: assembledTemplate.uiPreset,
-            theme: assembledTemplate.theme,
-            fields: assembledTemplate.fields,
-            fieldCount: assembledTemplate.fields.length,
-            templateMatched: true,
-            appliedAiPlan: true,
-            rawTemplate: assembledTemplate,
+            ...(result.meta || {}),
+
+            generationRoute:
+              "component-library",
+
+            uiPreset:
+              uiPreset ||
+              inferUiPresetFromPrompt(
+                finalPrompt
+              ),
           },
         });
       }
-    }
 
-    // 2. Safe Fallback: Use current deterministic template matcher
-    let result = generateExact500CrudTemplate(promptToMatch);
-    if (!result.success && promptToMatch !== finalPrompt) {
-      result = generateExact500CrudTemplate(finalPrompt);
-    }
+      return res.status(400).json({
+        success:
+          false,
 
-    if (!result.success) {
-      // Last-resort matching via findBestTemplate directly
-      const fallbackMatch = findBestTemplate(promptToMatch) || findBestTemplate("record");
-      if (fallbackMatch?.matched && fallbackMatch?.template) {
-        result = {
-          success: true,
-          meta: { rawTemplate: fallbackMatch.template }
-        };
-      }
-    }
+        unsupported:
+          true,
 
-    if (!result.success) {
-      return res.status(200).json({
-        success: false,
-        unsupported: true,
-        shouldFallback: false,
-        type: "unsupported_app_concept",
         message:
-          "Supabase generation requires a matching CRUD template. " +
-          (result.reason || "Try a prompt like: student management, inventory, notes, expenses, appointments."),
-        suggestions: SUPPORTED_EXAMPLES,
-        meta: result.meta || {},
+          CRUD_SCOPE_MESSAGE,
+
+        suggestions:
+          SUPPORTED_EXAMPLES,
+      });
+
+    } catch (error) {
+      console.error(
+        "Template generation error:",
+        error
+      );
+
+      return res.status(500).json({
+        success:
+          false,
+
+        message:
+          error.message ||
+          "Template generation failed.",
       });
     }
+  }
+);
 
-    // Build the Supabase-connected Flutter code using the matched template
-    const supabaseResult = buildFlutterSupabaseCrudApp({
-      template: result.meta?.rawTemplate || result.meta || {},
-      supabaseUrl: String(supabaseUrl).trim(),
-      supabaseAnonKey: String(supabaseAnonKey).trim(),
-      tableName: tableName ? String(tableName).trim() : "",
-    });
 
+/* ============================================================
+   FIND TEMPLATE
+   ============================================================ */
+
+router.post(
+  "/find-template",
+  auth,
+  generationLimiter,
+  async (req, res) => {
+    try {
+      const {
+        prompt,
+      } = req.body || {};
+
+      const finalPrompt =
+        cleanPrompt(prompt);
+
+      if (
+        isEmptyPrompt(
+          finalPrompt
+        )
+      ) {
+        return res.status(400).json({
+          success:
+            false,
+
+          message:
+            EMPTY_PROMPT_MESSAGE,
+        });
+      }
+
+      const result =
+        findBestTemplate(
+          finalPrompt
+        );
+
+      return res.json({
+        success:
+          true,
+
+        result,
+      });
+
+    } catch (error) {
+      console.error(
+        "Find template error:",
+        error
+      );
+
+      return res.status(500).json({
+        success:
+          false,
+
+        message:
+          error.message ||
+          "Template search failed.",
+      });
+    }
+  }
+);
+
+
+/* ============================================================
+   AI GENERATE
+   ============================================================ */
+
+router.post(
+  "/ai-generate",
+  auth,
+  generationLimiter,
+  async (req, res) => {
+    try {
+      const {
+        prompt,
+        appSpec,
+      } = req.body || {};
+
+      const finalPrompt =
+        cleanPrompt(prompt);
+
+      if (
+        isEmptyPrompt(
+          finalPrompt
+        )
+      ) {
+        return res.status(400).json({
+          success:
+            false,
+
+          message:
+            EMPTY_PROMPT_MESSAGE,
+        });
+      }
+
+      if (
+        isTooBigPrompt(
+          finalPrompt
+        )
+      ) {
+        return res.status(400).json(
+          buildTooComplexResponse(
+            finalPrompt
+          )
+        );
+      }
+
+      if (
+        containsExternalFeature(
+          finalPrompt
+        )
+      ) {
+        return res.status(400).json(
+          buildExternalFeatureResponse(
+            finalPrompt
+          )
+        );
+      }
+
+      const result =
+        await generateFlutterCode(
+          finalPrompt,
+          appSpec
+        );
+
+      if (
+        result &&
+        result.code
+      ) {
+        const code =
+          sanitizeGeneratedFlutterCode(
+            result.code
+          );
+
+        const structured =
+          buildStructuredProject(code);
+
+        return res.json({
+          success:
+            true,
+
+          code,
+
+          generatedCode:
+            code,
+
+          projectFiles:
+            structured.files,
+
+          fileManifest:
+            filesToManifest(
+              structured.files
+            ),
+
+          entrypoint:
+            structured.entrypoint ||
+            "lib/main.dart",
+
+          source:
+            "ai-generator",
+
+          unsupported:
+            false,
+
+          shouldFallback:
+            false,
+
+          storageMode:
+            "local",
+
+          meta:
+            result.meta ||
+            {},
+        });
+      }
+
+      return res.status(400).json({
+        success:
+          false,
+
+        unsupported:
+          true,
+
+        message:
+          CRUD_SCOPE_MESSAGE,
+
+        suggestions:
+          SUPPORTED_EXAMPLES,
+      });
+
+    } catch (error) {
+      console.error(
+        "AI generation error:",
+        error
+      );
+
+      return res.status(500).json({
+        success:
+          false,
+
+        message:
+          error.message ||
+          "AI Flutter generation failed.",
+      });
+    }
+  }
+);
+
+
+/* ============================================================
+   ANALYZE ROUTE
+   ============================================================ */
+
+router.post(
+  "/analyze",
+  auth,
+  generationLimiter,
+  async (req, res) => {
+    try {
+      const {
+        prompt,
+      } = req.body || {};
+
+      const finalPrompt =
+        cleanPrompt(prompt);
+
+      if (
+        isEmptyPrompt(
+          finalPrompt
+        )
+      ) {
+        return res.status(400).json({
+          success:
+            false,
+
+          message:
+            EMPTY_PROMPT_MESSAGE,
+        });
+      }
+
+      const result =
+        await analyzeAppPrompt(
+          finalPrompt
+        );
+
+      return res.json({
+        success:
+          true,
+
+        spec:
+          normalizeAppSpec(
+            normalizePromptResult(
+              result
+            )
+          ),
+      });
+
+    } catch (error) {
+      console.error(
+        "Analyze prompt error:",
+        error
+      );
+
+      return res.status(500).json({
+        success:
+          false,
+
+        message:
+          error.message ||
+          "Prompt analysis failed.",
+      });
+    }
+  }
+);
+
+
+/* ============================================================
+   PLAN ROUTE
+   ============================================================ */
+
+router.post(
+  "/plan",
+  auth,
+  generationLimiter,
+  async (req, res) => {
+    try {
+      const {
+        prompt,
+        spec,
+      } = req.body || {};
+
+      const source =
+        spec ||
+        prompt;
+
+      if (!source) {
+        return res.status(400).json({
+          success:
+            false,
+
+          message:
+            "Prompt or specification is required.",
+        });
+      }
+
+      const result =
+        await planApplication(
+          source
+        );
+
+      return res.json({
+        success:
+          true,
+
+        plan:
+          result,
+      });
+
+    } catch (error) {
+      console.error(
+        "Application planning error:",
+        error
+      );
+
+      return res.status(500).json({
+        success:
+          false,
+
+        message:
+          error.message ||
+          "Application planning failed.",
+      });
+    }
+  }
+);
+
+
+/* ============================================================
+   UI PRESET ROUTE
+   ============================================================ */
+
+router.post(
+  "/ui-preset",
+  auth,
+  generationLimiter,
+  async (req, res) => {
+    try {
+      const {
+        prompt,
+        preset,
+      } = req.body || {};
+
+      const finalPrompt =
+        cleanPrompt(prompt);
+
+      const resolvedPreset =
+        normalizeUiPreset(
+          preset ||
+          inferUiPresetFromPrompt(
+            finalPrompt
+          )
+        );
+
+      return res.json({
+        success:
+          true,
+
+        uiPreset:
+          resolvedPreset,
+      });
+
+    } catch (error) {
+      console.error(
+        "UI preset error:",
+        error
+      );
+
+      return res.status(500).json({
+        success:
+          false,
+
+        message:
+          error.message ||
+          "UI preset processing failed.",
+      });
+    }
+  }
+);
+
+
+/* ============================================================
+   SUPABASE GENERATE
+   ============================================================ */
+
+router.post(
+  "/supabase-generate",
+  auth,
+  generationLimiter,
+  async (req, res) => {
+    try {
+      const {
+        prompt,
+        supabaseConfig,
+        appSpec,
+      } = req.body || {};
+
+      const finalPrompt =
+        cleanPrompt(prompt);
+
+      if (
+        isEmptyPrompt(
+          finalPrompt
+        )
+      ) {
+        return res.status(400).json({
+          success:
+            false,
+
+          message:
+            EMPTY_PROMPT_MESSAGE,
+        });
+      }
+
+      const result =
+        buildFlutterSupabaseCrudApp(
+          finalPrompt,
+          {
+            supabaseConfig:
+              supabaseConfig ||
+              {},
+
+            appSpec:
+              appSpec ||
+              null,
+          }
+        );
+
+      if (
+        result &&
+        result.code
+      ) {
+        const code =
+          sanitizeGeneratedFlutterCode(
+            result.code
+          );
+
+        const structured =
+          buildStructuredProject(
+            code
+          );
+
+        return res.json({
+          success:
+            true,
+
+          code,
+
+          generatedCode:
+            code,
+
+          projectFiles:
+            structured.files,
+
+          fileManifest:
+            filesToManifest(
+              structured.files
+            ),
+
+          entrypoint:
+            structured.entrypoint ||
+            "lib/main.dart",
+
+          source:
+            "supabase-crud-factory",
+
+          unsupported:
+            false,
+
+          shouldFallback:
+            false,
+
+          storageMode:
+            "supabase",
+
+          supabaseConfig:
+            supabaseConfig ||
+            {},
+
+          appSpec:
+            appSpec ||
+            null,
+
+          meta:
+            result.meta ||
+            {},
+        });
+      }
+
+      return res.status(400).json({
+        success:
+          false,
+
+        unsupported:
+          true,
+
+        message:
+          CRUD_SCOPE_MESSAGE,
+
+        suggestions:
+          SUPPORTED_EXAMPLES,
+      });
+
+    } catch (error) {
+      console.error(
+        "Supabase generation error:",
+        error
+      );
+
+      return res.status(500).json({
+        success:
+          false,
+
+        message:
+          error.message ||
+          "Supabase Flutter generation failed.",
+      });
+    }
+  }
+);
+
+
+/* ============================================================
+   MULTI ENTITY GENERATION
+   ============================================================ */
+
+router.post(
+  "/multi-entity-generate",
+  auth,
+  generationLimiter,
+  async (req, res) => {
+    try {
+      const {
+        prompt,
+        spec,
+      } = req.body || {};
+
+      const source =
+        spec ||
+        prompt;
+
+      if (!source) {
+        return res.status(400).json({
+          success:
+            false,
+
+          message:
+            EMPTY_PROMPT_MESSAGE,
+        });
+      }
+
+      if (
+        typeof source === "string" &&
+        isTooBigPrompt(
+          source
+        )
+      ) {
+        return res.status(400).json(
+          buildTooComplexResponse(
+            source
+          )
+        );
+      }
+
+      if (
+        typeof source === "string" &&
+        containsExternalFeature(
+          source
+        )
+      ) {
+        return res.status(400).json(
+          buildExternalFeatureResponse(
+            source
+          )
+        );
+      }
+
+      const result =
+        await buildMultiEntityFlutterApp(
+          source
+        );
+
+      if (
+        result &&
+        result.code
+      ) {
+        const code =
+          sanitizeGeneratedFlutterCode(
+            result.code
+          );
+
+        const structured =
+          buildStructuredProject(
+            code
+          );
+
+        return res.json({
+          success:
+            true,
+
+          code,
+
+          generatedCode:
+            code,
+
+          projectFiles:
+            structured.files,
+
+          fileManifest:
+            filesToManifest(
+              structured.files
+            ),
+
+          entrypoint:
+            structured.entrypoint ||
+            "lib/main.dart",
+
+          source:
+            "multi-entity-compiler",
+
+          unsupported:
+            false,
+
+          shouldFallback:
+            false,
+
+          storageMode:
+            "local",
+
+          meta:
+            result.meta ||
+            {},
+        });
+      }
+
+      return res.status(400).json({
+        success:
+          false,
+
+        unsupported:
+          true,
+
+        message:
+          CRUD_SCOPE_MESSAGE,
+
+        suggestions:
+          SUPPORTED_EXAMPLES,
+      });
+
+    } catch (error) {
+      console.error(
+        "Multi-entity generation error:",
+        error
+      );
+
+      return res.status(500).json({
+        success:
+          false,
+
+        message:
+          error.message ||
+          "Multi-entity generation failed.",
+      });
+    }
+  }
+);
+
+
+/* ============================================================
+   EXISTING CONTEXT-AWARE PLANNING ROUTE
+   ============================================================ */
+
+router.post(
+  "/context-plan",
+  auth,
+  generationLimiter,
+  async (req, res) => {
+    try {
+      const {
+        prompt,
+        context,
+      } = req.body || {};
+
+      const finalPrompt =
+        cleanPrompt(prompt);
+
+      if (
+        isEmptyPrompt(
+          finalPrompt
+        )
+      ) {
+        return res.status(400).json({
+          success:
+            false,
+
+          message:
+            EMPTY_PROMPT_MESSAGE,
+        });
+      }
+
+      const result =
+        await getContextAwarePlan(
+          finalPrompt,
+          context || {}
+        );
+
+      return res.json({
+        success:
+          true,
+
+        plan:
+          result,
+      });
+
+    } catch (error) {
+      console.error(
+        "Context-aware planning error:",
+        error
+      );
+
+      return res.status(500).json({
+        success:
+          false,
+
+        message:
+          error.message ||
+          "Context-aware planning failed.",
+      });
+    }
+  }
+);
+
+
+/* ============================================================
+   EXISTING CONTEXT-AWARE GENERATION ROUTE
+   ============================================================ */
+
+router.post(
+  "/context-generate",
+  auth,
+  generationLimiter,
+  async (req, res) => {
+    try {
+      const {
+        prompt,
+        context,
+      } = req.body || {};
+
+      const finalPrompt =
+        cleanPrompt(prompt);
+
+      if (
+        isEmptyPrompt(
+          finalPrompt
+        )
+      ) {
+        return res.status(400).json({
+          success:
+            false,
+
+          message:
+            EMPTY_PROMPT_MESSAGE,
+        });
+      }
+
+      if (
+        isTooBigPrompt(
+          finalPrompt
+        )
+      ) {
+        return res.status(400).json(
+          buildTooComplexResponse(
+            finalPrompt
+          )
+        );
+      }
+
+      const plan =
+        await getContextAwarePlan(
+          finalPrompt,
+          context || {}
+        );
+
+      const result =
+        await buildContextAwareFlutterApp(
+          plan
+        );
+
+      if (
+        result &&
+        result.code
+      ) {
+        const code =
+          sanitizeGeneratedFlutterCode(
+            result.code
+          );
+
+        const structured =
+          buildStructuredProject(
+            code
+          );
+
+        return res.json({
+          success:
+            true,
+
+          code,
+
+          generatedCode:
+            code,
+
+          projectFiles:
+            structured.files,
+
+          fileManifest:
+            filesToManifest(
+              structured.files
+            ),
+
+          entrypoint:
+            structured.entrypoint ||
+            "lib/main.dart",
+
+          source:
+            "context-aware-generator",
+
+          unsupported:
+            false,
+
+          shouldFallback:
+            false,
+
+          storageMode:
+            "local",
+
+          meta: {
+            ...(result.meta || {}),
+            plan,
+          },
+        });
+      }
+
+      return res.status(400).json({
+        success:
+          false,
+
+        unsupported:
+          true,
+
+        message:
+          CRUD_SCOPE_MESSAGE,
+
+        suggestions:
+          SUPPORTED_EXAMPLES,
+      });
+
+    } catch (error) {
+      console.error(
+        "Context-aware generation error:",
+        error
+      );
+
+      return res.status(500).json({
+        success:
+          false,
+
+        message:
+          error.message ||
+          "Context-aware generation failed.",
+      });
+    }
+  }
+);
+
+
+/* ============================================================
+   EXISTING ARCHITECT BLUEPRINT ROUTE
+   ============================================================ */
+
+router.post(
+  "/architect",
+  auth,
+  generationLimiter,
+  async (req, res) => {
+    try {
+      const {
+        prompt,
+        spec,
+      } = req.body || {};
+
+      const source =
+        spec ||
+        prompt;
+
+      if (!source) {
+        return res.status(400).json({
+          success:
+            false,
+
+          message:
+            "Prompt or specification is required.",
+        });
+      }
+
+      const blueprint =
+        await buildArchitectBlueprint(
+          source
+        );
+
+      return res.json({
+        success:
+          true,
+
+        blueprint,
+      });
+
+    } catch (error) {
+      console.error(
+        "Architect blueprint error:",
+        error
+      );
+
+      return res.status(500).json({
+        success:
+          false,
+
+        message:
+          error.message ||
+          "Architect blueprint generation failed.",
+      });
+    }
+  }
+);
+
+
+/* ============================================================
+   EXISTING WORKSPACE COMPONENT SPEC ROUTE
+   ============================================================ */
+
+router.post(
+  "/workspace-component-spec",
+  auth,
+  generationLimiter,
+  async (req, res) => {
+    try {
+      const {
+        prompt,
+        spec,
+        context,
+      } = req.body || {};
+
+      const source =
+        spec ||
+        prompt;
+
+      if (!source) {
+        return res.status(400).json({
+          success:
+            false,
+
+          message:
+            "Prompt or specification is required.",
+        });
+      }
+
+      const result =
+        await buildWorkspaceComponentSpec(
+          source,
+          context || {}
+        );
+
+      return res.json({
+        success:
+          true,
+
+        componentSpec:
+          result,
+      });
+
+    } catch (error) {
+      console.error(
+        "Workspace component specification error:",
+        error
+      );
+
+      return res.status(500).json({
+        success:
+          false,
+
+        message:
+          error.message ||
+          "Workspace component specification failed.",
+      });
+    }
+  }
+);
+
+
+/* ============================================================
+   EXISTING CRUD GENERATOR ROUTE
+   ============================================================ */
+
+router.post(
+  "/crud-generate",
+  auth,
+  generationLimiter,
+  async (req, res) => {
+    try {
+      const {
+        prompt,
+        spec,
+        uiPreset,
+      } = req.body || {};
+
+      const source =
+        spec ||
+        prompt;
+
+      if (!source) {
+        return res.status(400).json({
+          success:
+            false,
+
+          message:
+            EMPTY_PROMPT_MESSAGE,
+        });
+      }
+
+      if (
+        typeof source === "string" &&
+        isTooBigPrompt(
+          source
+        )
+      ) {
+        return res.status(400).json(
+          buildTooComplexResponse(
+            source
+          )
+        );
+      }
+
+      if (
+        typeof source === "string" &&
+        containsExternalFeature(
+          source
+        )
+      ) {
+        return res.status(400).json(
+          buildExternalFeatureResponse(
+            source
+          )
+        );
+      }
+
+      const result =
+        buildFlutterCrudApp(
+          source,
+          {
+            uiPreset:
+              uiPreset ||
+              inferUiPresetFromPrompt(
+                typeof source === "string"
+                  ? source
+                  : ""
+              ),
+          }
+        );
+
+      if (
+        result &&
+        result.code
+      ) {
+        const code =
+          sanitizeGeneratedFlutterCode(
+            result.code
+          );
+
+        const structured =
+          buildStructuredProject(
+            code
+          );
+
+        return res.json({
+          success:
+            true,
+
+          code,
+
+          generatedCode:
+            code,
+
+          projectFiles:
+            structured.files,
+
+          fileManifest:
+            filesToManifest(
+              structured.files
+            ),
+
+          entrypoint:
+            structured.entrypoint ||
+            "lib/main.dart",
+
+          source:
+            "crud-factory",
+
+          unsupported:
+            false,
+
+          shouldFallback:
+            false,
+
+          storageMode:
+            "local",
+
+          meta:
+            result.meta ||
+            {},
+        });
+      }
+
+      return res.status(400).json({
+        success:
+          false,
+
+        unsupported:
+          true,
+
+        message:
+          CRUD_SCOPE_MESSAGE,
+
+        suggestions:
+          SUPPORTED_EXAMPLES,
+      });
+
+    } catch (error) {
+      console.error(
+        "CRUD generation error:",
+        error
+      );
+
+      return res.status(500).json({
+        success:
+          false,
+
+        message:
+          error.message ||
+          "CRUD generation failed.",
+      });
+    }
+  }
+);
+
+
+/* ============================================================
+   HEALTH / ROUTE INFO
+   ============================================================ */
+
+router.get(
+  "/health",
+  (req, res) => {
     return res.json({
-      success: true,
-      code: supabaseResult.code,
-      generatedCode: supabaseResult.code,
-      tableSql: supabaseResult.tableSql,
-      tableName: supabaseResult.tableName,
-      source: "supabase-template",
-      storageMode: "supabase",
-      unsupported: false,
-      shouldFallback: false,
-      meta: result.meta || {},
-    });
-  } catch (error) {
-    console.error("supabase-generate error:", error);
+      success:
+        true,
 
-    return res.status(500).json({
-      success: false,
-      message: "Supabase app generation failed: " + (error.message || "Unknown error"),
+      service:
+        "template-generation",
+
+      status:
+        "ok",
+
+      routes: {
+        hybridGenerate:
+          "/hybrid-generate",
+
+        template:
+          "/template",
+
+        supabaseGenerate:
+          "/supabase-generate",
+
+        aiGenerate:
+          "/ai-generate",
+
+        crudGenerate:
+          "/crud-generate",
+
+        findTemplate:
+          "/find-template",
+
+        analyze:
+          "/analyze",
+
+        plan:
+          "/plan",
+
+        uiPreset:
+          "/ui-preset",
+
+        multiEntityGenerate:
+          "/multi-entity-generate",
+
+        contextPlan:
+          "/context-plan",
+
+        contextGenerate:
+          "/context-generate",
+
+        architect:
+          "/architect",
+
+        workspaceComponentSpec:
+          "/workspace-component-spec",
+      },
+
+      claudeRouting:
+        true,
+
+      groqRouting:
+        true,
+
+      directMultiFileGeneration:
+        true,
     });
   }
-});
+);
 
-router.isTooBigPrompt = isTooBigPrompt;
-router.isMultiEntityPrompt = isMultiEntityPrompt;
-router.applyAiPlanToTemplate = applyAiPlanToTemplate;
-module.exports = router;
+
+/* ============================================================
+   MODULE EXPORT
+   ============================================================ */
+
+module.exports =
+  router;
