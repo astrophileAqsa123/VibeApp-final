@@ -311,9 +311,18 @@ function normalizeAppSpec(rawInput, options = {}) {
   }
 
   const theme = normalizeTheme(rawSpec.theme, warnings);
+  const rawSupabase = rawSpec.supabaseConfig || rawSpec.supabase || rawSpec.app?.supabase || {};
+  const supabaseConfig = storageMode === "supabase" ? {
+    storageMode: "supabase",
+    supabaseUrl: String(rawSupabase.supabaseUrl || rawSupabase.supabase_url || rawSupabase.url || rawSpec.supabaseUrl || "").trim(),
+    supabaseAnonKey: String(rawSupabase.supabaseAnonKey || rawSupabase.supabase_anon_key || rawSupabase.anonKey || rawSupabase.anon_key || rawSpec.supabaseAnonKey || "").trim(),
+    supabaseTable: String(rawSupabase.supabaseTable || rawSupabase.supabase_table || rawSupabase.tableName || rawSpec.supabaseTable || "").trim(),
+    tableSql: String(rawSupabase.tableSql || rawSupabase.table_sql || rawSpec.tableSql || "").trim(),
+  } : null;
   const spec = {
     specVersion: APP_SPEC_VERSION,
-    app: { id: toIdentifier(rawSpec.app?.id || appName, "generatedApp"), name: appName, description: String(rawSpec.app?.description || "").trim(), storageMode },
+    app: { id: toIdentifier(rawSpec.app?.id || appName, "generatedApp"), name: appName, description: String(rawSpec.app?.description || "").trim(), storageMode, ...(supabaseConfig ? { supabase: supabaseConfig } : {}) },
+    ...(supabaseConfig ? { supabaseConfig } : {}),
     theme,
     authentication,
     splash,

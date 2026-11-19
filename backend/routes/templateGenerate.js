@@ -71,6 +71,12 @@ const {
   buildMultiEntityFlutterApp,
 } = require("../services/multiEntityFlutterCompiler");
 
+const {
+  resolveSupabaseConfig,
+  assertSupabaseConfig,
+  applySupabaseIntegration,
+} = require("../services/supabaseIntegration");
+
 const auth = require("../middleware/authMiddleware");
 
 const {
@@ -691,7 +697,26 @@ router.post(
     try {
       const {
         prompt,
+        supabaseConfig: requestSupabaseInput = null,
+        appSpec: requestAppSpec = null,
+        storageMode = "local",
+        supabaseUrl = "",
+        supabaseAnonKey = "",
+        supabaseTable = "",
+        tableSql = "",
       } = req.body || {};
+
+      const requestSupabaseConfig = resolveSupabaseConfig(
+        requestSupabaseInput || {
+          storageMode,
+          supabaseUrl,
+          supabaseAnonKey,
+          supabaseTable,
+          tableSql,
+        },
+        requestAppSpec,
+        req.body || {}
+      );
 
       const finalPrompt =
         cleanPrompt(prompt);
@@ -732,9 +757,33 @@ router.post(
             libraryResult.success &&
             libraryResult.code
           ) {
-            const code =
+            if (requestSupabaseConfig.storageMode === "supabase") {
+              assertSupabaseConfig(requestSupabaseConfig);
+            }
+
+            const rawLibraryTemplate =
+              libraryResult.meta?.rawTemplate ||
+              libraryResult.meta ||
+              null;
+
+            let code = libraryResult.code;
+            let generationSource = "component-library-simple-prompt";
+            let generatedStorageMode = requestSupabaseConfig.storageMode === "supabase" ? "supabase" : "local";
+
+            if (requestSupabaseConfig.storageMode === "supabase") {
+              const supabaseLibrary = buildFlutterSupabaseCrudApp({
+                template: rawLibraryTemplate,
+                supabaseUrl: requestSupabaseConfig.supabaseUrl,
+                supabaseAnonKey: requestSupabaseConfig.supabaseAnonKey,
+                tableName: requestSupabaseConfig.supabaseTable,
+              });
+              code = supabaseLibrary.code;
+              generationSource = "component-library-supabase";
+            }
+
+            code =
               sanitizeGeneratedFlutterCode(
-                libraryResult.code
+                code
               );
 
             /*
@@ -770,7 +819,7 @@ router.post(
                 "lib/main.dart",
 
               source:
-                "component-library-simple-prompt",
+                generationSource,
 
               unsupported:
                 false,
@@ -779,7 +828,13 @@ router.post(
                 false,
 
               storageMode:
-                "local",
+                generatedStorageMode,
+
+              supabaseConfig:
+                generatedStorageMode === "supabase" ? requestSupabaseConfig : null,
+
+              appSpec:
+                requestAppSpec || null,
 
               appConfig:
                 libraryResult.meta?.rawTemplate ||
@@ -850,7 +905,7 @@ router.post(
       );
 
       console.log(
-        "Supabase: disabled"
+        `Supabase: ${requestSupabaseConfig.storageMode === "supabase" ? "enabled" : "disabled"}`
       );
 
       console.log(
@@ -872,6 +927,20 @@ router.post(
         console.log(
           "[Groq] Specification generation completed."
         );
+
+        if (requestSupabaseConfig.storageMode === "supabase") {
+          assertSupabaseConfig(requestSupabaseConfig);
+          groqAppSpec = {
+            ...groqAppSpec,
+            storageMode: "supabase",
+            app: {
+              ...(groqAppSpec.app || {}),
+              storageMode: "supabase",
+              supabase: requestSupabaseConfig,
+            },
+            supabaseConfig: requestSupabaseConfig,
+          };
+        }
 
         console.log(
           "[Groq] Specification will now be passed to Claude/Sonnet."
@@ -917,7 +986,7 @@ router.post(
           "[VibeApp] Passing Groq JSON specification to Claude/Sonnet..."
         );
 
-        const structured =
+        let structured =
           await generateCustomStructuredProject({
             prompt:
               finalPrompt,
@@ -926,8 +995,17 @@ router.post(
               groqAppSpec,
 
             supabaseConfig:
-              null,
+              requestSupabaseConfig.storageMode === "supabase"
+                ? requestSupabaseConfig
+                : null,
           });
+
+        if (requestSupabaseConfig.storageMode === "supabase") {
+          structured = {
+            ...structured,
+            ...applySupabaseIntegration(structured.files, requestSupabaseConfig),
+          };
+        }
 
         const entrypoint =
           structured.entrypoint ||
@@ -990,7 +1068,9 @@ router.post(
             entrypoint,
 
           source:
-            "groq-claude-multifile",
+            requestSupabaseConfig.storageMode === "supabase"
+              ? "groq-claude-multifile-supabase"
+              : "groq-claude-multifile",
 
           unsupported:
             false,
@@ -999,7 +1079,10 @@ router.post(
             false,
 
           storageMode:
-            "local",
+            requestSupabaseConfig.storageMode,
+
+          supabaseConfig:
+            requestSupabaseConfig.storageMode === "supabase" ? requestSupabaseConfig : null,
 
           appSpec:
             groqAppSpec,
@@ -1051,7 +1134,9 @@ router.post(
                 "",
 
               supabaseConfig:
-                null,
+                requestSupabaseConfig.storageMode === "supabase"
+                  ? requestSupabaseConfig
+                  : null,
 
               appSpec:
                 groqAppSpec,
@@ -1752,19 +1837,21 @@ router.post(
         });
       }
 
-      const result =
-        buildFlutterSupabaseCrudApp(
-          finalPrompt,
-          {
-            supabaseConfig:
-              supabaseConfig ||
-              {},
+      const effectiveSupabaseConfig = resolveSupabaseConfig(
+        supabaseConfig,
+        appSpec,
+        req.body || {}
+      );
+      effectiveSupabaseConfig.storageMode = "supabase";
+      assertSupabaseConfig(effectiveSupabaseConfig);
 
-            appSpec:
-              appSpec ||
-              null,
-          }
-        );
+      const result =
+        buildFlutterSupabaseCrudApp({
+          template: appSpec?.template || appSpec || {},
+          supabaseUrl: effectiveSupabaseConfig.supabaseUrl,
+          supabaseAnonKey: effectiveSupabaseConfig.supabaseAnonKey,
+          tableName: effectiveSupabaseConfig.supabaseTable,
+        });
 
       if (
         result &&
@@ -1814,8 +1901,7 @@ router.post(
             "supabase",
 
           supabaseConfig:
-            supabaseConfig ||
-            {},
+            effectiveSupabaseConfig,
 
           appSpec:
             appSpec ||

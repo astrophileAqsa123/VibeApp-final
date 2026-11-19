@@ -440,7 +440,16 @@ router.post("/", auth, async (req, res) => {
         if (!effectiveUrl && extracted.supabaseUrl) {
           effectiveUrl = extracted.supabaseUrl;
         }
+        if (!supabaseAnonKey && extracted.supabaseAnonKey) {
+          supabaseAnonKey = extracted.supabaseAnonKey;
+        }
       }
+    }
+
+    if (effectiveStorageMode === "supabase" && (!effectiveUrl || !supabaseAnonKey)) {
+      const extracted = extractSupabaseConfigFromCode(code);
+      if (!effectiveUrl && extracted.supabaseUrl) effectiveUrl = extracted.supabaseUrl;
+      if (!supabaseAnonKey && extracted.supabaseAnonKey) supabaseAnonKey = extracted.supabaseAnonKey;
     }
 
     const project = new Project({

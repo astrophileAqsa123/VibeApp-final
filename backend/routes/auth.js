@@ -2,6 +2,7 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
+const dns = require("dns").promises;
 
 const router = express.Router();
 
@@ -16,12 +17,19 @@ const authLimiter = createRateLimiter({
   prefix: "auth"
 });
 
+
 const otpLimiter = createRateLimiter({
   windowMs: 15 * 60_000,
   max: 5,
   prefix: "otp"
 });
 
+
+/*
+  ==========================================================
+  EMAIL NORMALIZATION
+  ==========================================================
+*/
 
 function normalizeEmail(email) {
   return String(email || "")
@@ -30,10 +38,363 @@ function normalizeEmail(email) {
 }
 
 
-function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+/*
+  ==========================================================
+  BASIC EMAIL FORMAT VALIDATION
+  ==========================================================
+
+  This checks the structure of the email.
+
+  Examples:
+
+  user@gmail.com       -> valid format
+  user.name@gmail.com  -> valid format
+  user+test@gmail.com  -> valid format
+  user@                -> invalid
+  user@gmail           -> invalid
+  @gmail.com           -> invalid
+  user gmail.com       -> invalid
+*/
+
+function hasValidEmailFormat(email) {
+  const value = String(email || "").trim();
+
+  if (!value) {
+    return false;
+  }
+
+  /*
+   * Prevent extremely long email addresses.
+   */
+  if (value.length > 254) {
+    return false;
+  }
+
+  /*
+   * Basic RFC-compatible practical email format.
+   */
+  const emailRegex =
+    /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
+
+  if (!emailRegex.test(value)) {
+    return false;
+  }
+
+  /*
+   * Reject consecutive dots in the local part.
+   *
+   * Example:
+   * user..name@gmail.com -> invalid
+   */
+  const [localPart, domain] = value.split("@");
+
+  if (!localPart || !domain) {
+    return false;
+  }
+
+  if (
+    localPart.startsWith(".") ||
+    localPart.endsWith(".") ||
+    localPart.includes("..")
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
+
+/*
+  ==========================================================
+  DOMAIN VALIDATION
+  ==========================================================
+
+  This checks that the domain has a proper hostname/TLD.
+
+  Examples:
+
+  gmail.com       -> valid domain structure
+  gmail.com.pk    -> valid domain structure
+  university.edu  -> valid domain structure
+  abc@qp.zk       -> may fail later at DNS/MX validation
+
+  NOTE:
+  A syntactically valid domain does NOT automatically mean
+  that the domain actually exists.
+*/
+
+function hasValidDomainStructure(email) {
+  try {
+    const domain =
+      String(email || "")
+        .trim()
+        .toLowerCase()
+        .split("@")[1];
+
+    if (!domain) {
+      return false;
+    }
+
+    if (domain.length > 253) {
+      return false;
+    }
+
+    /*
+     * Domain must contain at least one dot.
+     */
+    if (!domain.includes(".")) {
+      return false;
+    }
+
+    /*
+     * Prevent consecutive dots.
+     */
+    if (domain.includes("..")) {
+      return false;
+    }
+
+    /*
+     * Domain cannot start/end with dot or hyphen.
+     */
+    if (
+      domain.startsWith(".") ||
+      domain.endsWith(".") ||
+      domain.startsWith("-") ||
+      domain.endsWith("-")
+    ) {
+      return false;
+    }
+
+    /*
+     * Each domain label must be valid.
+     */
+    const labels = domain.split(".");
+
+    if (labels.length < 2) {
+      return false;
+    }
+
+    for (const label of labels) {
+      if (!label) {
+        return false;
+      }
+
+      if (label.length > 63) {
+        return false;
+      }
+
+      if (
+        label.startsWith("-") ||
+        label.endsWith("-")
+      ) {
+        return false;
+      }
+
+      if (!/^[A-Za-z0-9-]+$/.test(label)) {
+        return false;
+      }
+    }
+
+    /*
+     * TLD must contain only letters.
+     *
+     * This prevents things like:
+     *
+     * example.123
+     * example.@@
+     *
+     * from being accepted.
+     */
+    const tld =
+      labels[labels.length - 1];
+
+    if (!/^[A-Za-z]{2,63}$/.test(tld)) {
+      return false;
+    }
+
+    return true;
+
+  } catch (error) {
+    return false;
+  }
+}
+
+
+/*
+  ==========================================================
+  DNS / MX EMAIL DOMAIN VALIDATION
+  ==========================================================
+
+  This is the important part.
+
+  Regex alone can only tell us:
+
+      something@something.com
+
+  looks like an email.
+
+  It cannot tell us whether:
+
+      something.com
+
+  actually exists.
+
+  Here we check DNS.
+
+  Priority:
+
+  1. MX records
+  2. If no MX exists, check A/AAAA records
+
+  Why A/AAAA fallback?
+
+  Some legitimate mail domains may not publish MX directly
+  and can technically fall back to their host's A/AAAA record.
+
+  If neither MX nor A/AAAA exists, the domain is considered
+  invalid/unusable.
+
+  IMPORTANT:
+
+  This does NOT prove that the mailbox itself exists.
+
+  OTP verification proves mailbox ownership.
+*/
+
+async function hasValidEmailDomain(email) {
+  try {
+    const domain =
+      String(email || "")
+        .trim()
+        .toLowerCase()
+        .split("@")[1];
+
+    if (!domain) {
+      return false;
+    }
+
+
+    /*
+     * First check MX records.
+     */
+    try {
+      const mxRecords =
+        await dns.resolveMx(domain);
+
+      if (
+        Array.isArray(mxRecords) &&
+        mxRecords.length > 0
+      ) {
+        return true;
+      }
+
+    } catch (mxError) {
+      /*
+       * Continue to A/AAAA fallback.
+       */
+    }
+
+
+    /*
+     * Some domains may not have MX records
+     * but still resolve to an IP.
+     */
+    try {
+      const ipv4Records =
+        await dns.resolve4(domain);
+
+      if (
+        Array.isArray(ipv4Records) &&
+        ipv4Records.length > 0
+      ) {
+        return true;
+      }
+
+    } catch (ipv4Error) {
+      /*
+       * Continue to IPv6 check.
+      */
+    }
+
+
+    try {
+      const ipv6Records =
+        await dns.resolve6(domain);
+
+      if (
+        Array.isArray(ipv6Records) &&
+        ipv6Records.length > 0
+      ) {
+        return true;
+      }
+
+    } catch (ipv6Error) {
+      /*
+       * No usable DNS records.
+       */
+    }
+
+
+    return false;
+
+  } catch (error) {
+
+    console.error(
+      "Email domain validation error:",
+      error
+    );
+
+    return false;
+  }
+}
+
+
+/*
+  ==========================================================
+  COMPLETE EMAIL VALIDATION
+  ==========================================================
+
+  This is now the main email validator used by the
+  authentication routes.
+
+  Validation order:
+
+  1. Basic format
+  2. Domain structure
+  3. DNS/MX existence
+*/
+
+async function isValidEmail(email) {
+
+  const normalized =
+    normalizeEmail(email);
+
+
+  if (!hasValidEmailFormat(normalized)) {
+    return false;
+  }
+
+
+  if (!hasValidDomainStructure(normalized)) {
+    return false;
+  }
+
+
+  const domainIsValid =
+    await hasValidEmailDomain(
+      normalized
+    );
+
+
+  return domainIsValid;
+}
+
+
+/*
+  ==========================================================
+  PASSWORD VALIDATION
+  ==========================================================
+*/
 
 function isStrongPassword(password) {
   return (
@@ -45,6 +406,12 @@ function isStrongPassword(password) {
   );
 }
 
+
+/*
+  ==========================================================
+  JWT TOKEN
+  ==========================================================
+*/
 
 function createToken(user) {
   return jwt.sign(
@@ -61,6 +428,12 @@ function createToken(user) {
 }
 
 
+/*
+  ==========================================================
+  OTP GENERATION
+  ==========================================================
+*/
+
 function generateOtp() {
   return crypto
     .randomInt(100000, 999999)
@@ -68,14 +441,23 @@ function generateOtp() {
 }
 
 
+/*
+  ==========================================================
+  SEND OTP EMAIL
+  ==========================================================
+*/
+
 async function sendOtpEmail(email, otp) {
+
   const subject =
     "VibeApp — Verify your email";
+
 
   const text =
     `Your VibeApp verification code is: ${otp}\n\n` +
     `This code expires in 15 minutes.\n\n` +
     `If you did not sign up, ignore this email.`;
+
 
   await sendEmail(
     email,
@@ -96,22 +478,39 @@ router.post(
   "/signup",
   authLimiter,
   async (req, res) => {
+
     try {
+
       const name =
-        String(req.body.name || "").trim();
+        String(
+          req.body.name || ""
+        ).trim();
+
 
       const email =
-        normalizeEmail(req.body.email);
+        normalizeEmail(
+          req.body.email
+        );
+
 
       const password =
-        String(req.body.password || "");
+        String(
+          req.body.password || ""
+        );
 
+
+      /*
+       * ------------------------------------------------------
+       * NAME VALIDATION
+       * ------------------------------------------------------
+       */
 
       if (!name) {
         return res
           .status(400)
           .json({
-            message: "Full name is required"
+            message:
+              "Full name is required"
           });
       }
 
@@ -126,30 +525,68 @@ router.post(
       }
 
 
+      /*
+       * ------------------------------------------------------
+       * EMAIL REQUIRED
+       * ------------------------------------------------------
+       */
+
       if (!email) {
         return res
           .status(400)
           .json({
-            message: "Email is required"
+            message:
+              "Email is required"
           });
       }
 
 
-      if (!isValidEmail(email)) {
+      /*
+       * ------------------------------------------------------
+       * EMAIL FORMAT + DOMAIN VALIDATION
+       * ------------------------------------------------------
+
+       * IMPORTANT:
+       *
+       * This now performs asynchronous DNS/MX validation.
+       *
+       * Invalid domains such as:
+       *
+       * abc@qp.zk
+       * abc@yh.polk
+       *
+       * will not reach OTP creation/sending if
+       * their domain does not resolve.
+       */
+
+      const emailIsValid =
+        await isValidEmail(
+          email
+        );
+
+
+      if (!emailIsValid) {
         return res
           .status(400)
           .json({
             message:
-              "Please enter a valid email address"
+              "Please enter a valid email address with a valid email domain"
           });
       }
 
+
+      /*
+       * ------------------------------------------------------
+       * PASSWORD VALIDATION
+       * ------------------------------------------------------
+       */
 
       if (!password) {
         return res
           .status(400)
           .json({
-            message: "Password is required"
+            message:
+              "Password is required"
           });
       }
 
@@ -163,6 +600,12 @@ router.post(
           });
       }
 
+
+      /*
+       * ------------------------------------------------------
+       * CHECK EXISTING USER
+       * ------------------------------------------------------
+       */
 
       const existingUser =
         await User.findOne({
@@ -183,8 +626,15 @@ router.post(
       }
 
 
+      /*
+       * ------------------------------------------------------
+       * GENERATE OTP
+       * ------------------------------------------------------
+       */
+
       const otp =
         generateOtp();
+
 
       const otpExpires =
         new Date(
@@ -193,12 +643,24 @@ router.post(
         );
 
 
+      /*
+       * ------------------------------------------------------
+       * HASH OTP
+       * ------------------------------------------------------
+       */
+
       const hashedOtp =
         await bcrypt.hash(
           otp,
           10
         );
 
+
+      /*
+       * ------------------------------------------------------
+       * HASH PASSWORD
+       * ------------------------------------------------------
+       */
 
       const hashedPassword =
         await bcrypt.hash(
@@ -207,10 +669,17 @@ router.post(
         );
 
 
+      /*
+       * ------------------------------------------------------
+       * UPDATE EXISTING UNVERIFIED USER
+       * ------------------------------------------------------
+       */
+
       if (
         existingUser &&
         !existingUser.isVerified
       ) {
+
         existingUser.name =
           name;
 
@@ -223,9 +692,16 @@ router.post(
         existingUser.otpExpires =
           otpExpires;
 
+
         await existingUser.save();
 
       } else {
+
+        /*
+         * ----------------------------------------------------
+         * CREATE NEW USER
+         * ----------------------------------------------------
+         */
 
         await User.create({
           name,
@@ -239,11 +715,23 @@ router.post(
       }
 
 
+      /*
+       * ------------------------------------------------------
+       * SEND OTP
+       * ------------------------------------------------------
+       */
+
       await sendOtpEmail(
         email,
         otp
       );
 
+
+      /*
+       * ------------------------------------------------------
+       * SUCCESS
+       * ------------------------------------------------------
+       */
 
       return res
         .status(201)
@@ -264,10 +752,12 @@ router.post(
         error
       );
 
-      res
+
+      return res
         .status(500)
         .json({
-          message: "Signup failed"
+          message:
+            "Signup failed"
         });
     }
   }
@@ -285,11 +775,14 @@ router.post(
   "/verify-otp",
   otpLimiter,
   async (req, res) => {
+
     try {
+
       const email =
         normalizeEmail(
           req.body.email
         );
+
 
       const otp =
         String(
@@ -379,8 +872,10 @@ router.post(
       user.isVerified =
         true;
 
+
       user.otp =
         null;
+
 
       user.otpExpires =
         null;
@@ -416,7 +911,8 @@ router.post(
         error
       );
 
-      res
+
+      return res
         .status(500)
         .json({
           message:
@@ -438,7 +934,9 @@ router.post(
   "/resend-otp",
   otpLimiter,
   async (req, res) => {
+
     try {
+
       const email =
         normalizeEmail(
           req.body.email
@@ -455,11 +953,36 @@ router.post(
       }
 
 
+      /*
+       * Validate email again before
+       * allowing another OTP to be sent.
+       */
+
+      const emailIsValid =
+        await isValidEmail(
+          email
+        );
+
+
+      if (!emailIsValid) {
+        return res
+          .status(400)
+          .json({
+            message:
+              "Please enter a valid email address with a valid email domain"
+          });
+      }
+
+
       const user =
         await User.findOne({
           email
         });
 
+
+      /*
+       * Don't reveal whether an account exists.
+       */
 
       if (
         !user ||
@@ -477,11 +1000,13 @@ router.post(
       const otp =
         generateOtp();
 
+
       const otpExpires =
         new Date(
           Date.now() +
           15 * 60 * 1000
         );
+
 
       const hashedOtp =
         await bcrypt.hash(
@@ -492,6 +1017,7 @@ router.post(
 
       user.otp =
         hashedOtp;
+
 
       user.otpExpires =
         otpExpires;
@@ -520,7 +1046,8 @@ router.post(
         error
       );
 
-      res
+
+      return res
         .status(500)
         .json({
           message:
@@ -542,11 +1069,14 @@ router.post(
   "/login",
   authLimiter,
   async (req, res) => {
+
     try {
+
       const email =
         normalizeEmail(
           req.body.email
         );
+
 
       const password =
         String(
@@ -564,12 +1094,23 @@ router.post(
       }
 
 
-      if (!isValidEmail(email)) {
+      /*
+       * Login also uses the same
+       * strong email validation.
+       */
+
+      const emailIsValid =
+        await isValidEmail(
+          email
+        );
+
+
+      if (!emailIsValid) {
         return res
           .status(400)
           .json({
             message:
-              "Please enter a valid email address"
+              "Please enter a valid email address with a valid email domain"
           });
       }
 
@@ -617,16 +1158,24 @@ router.post(
       }
 
 
+      /*
+       * ------------------------------------------------------
+       * EMAIL NOT VERIFIED
+       * ------------------------------------------------------
+       */
+
       if (!user.isVerified) {
 
         const otp =
           generateOtp();
+
 
         const otpExpires =
           new Date(
             Date.now() +
             15 * 60 * 1000
           );
+
 
         const hashedOtp =
           await bcrypt.hash(
@@ -637,6 +1186,7 @@ router.post(
 
         user.otp =
           hashedOtp;
+
 
         user.otpExpires =
           otpExpires;
@@ -665,6 +1215,12 @@ router.post(
       }
 
 
+      /*
+       * ------------------------------------------------------
+       * LOGIN SUCCESS
+       * ------------------------------------------------------
+       */
+
       const token =
         createToken(user);
 
@@ -692,7 +1248,8 @@ router.post(
         error
       );
 
-      res
+
+      return res
         .status(500)
         .json({
           message:
@@ -721,6 +1278,7 @@ router.post(
     const genericMessage =
       "If an account exists for that email, a password recovery link has been sent.";
 
+
     try {
 
       const email =
@@ -730,16 +1288,39 @@ router.post(
 
 
       /*
-       * Don't expose whether the email is valid
-       * or registered.
+       * ------------------------------------------------------
+       * VALIDATE EMAIL
+       * ------------------------------------------------------
+
+       * If the email format/domain is invalid,
+       * don't continue to the database lookup.
+       *
+       * We still return the generic response so that
+       * registered-account information is not exposed.
        */
+
       if (
-        !email ||
-        !isValidEmail(email)
+        !email
       ) {
         return res.json({
           success: true,
-          message: genericMessage
+          message:
+            genericMessage
+        });
+      }
+
+
+      const emailIsValid =
+        await isValidEmail(
+          email
+        );
+
+
+      if (!emailIsValid) {
+        return res.json({
+          success: true,
+          message:
+            genericMessage
         });
       }
 
@@ -754,6 +1335,7 @@ router.post(
        * Only send recovery mail for an existing
        * verified account.
        */
+
       if (
         user &&
         user.isVerified
@@ -762,6 +1344,7 @@ router.post(
         /*
          * Generate a secure 32-byte random token.
          */
+
         const rawToken =
           crypto
             .randomBytes(32)
@@ -771,6 +1354,7 @@ router.post(
         /*
          * Never store the raw reset token.
          */
+
         const hashedToken =
           crypto
             .createHash("sha256")
@@ -781,8 +1365,10 @@ router.post(
         /*
          * Link remains valid for 30 minutes.
          */
+
         user.resetPasswordToken =
           hashedToken;
+
 
         user.resetPasswordExpires =
           new Date(
@@ -798,7 +1384,10 @@ router.post(
           String(
             process.env.FRONTEND_URL ||
             "http://localhost:5173"
-          ).replace(/\/$/, "");
+          ).replace(
+            /\/$/,
+            ""
+          );
 
 
         const resetUrl =
@@ -833,6 +1422,7 @@ router.post(
            *
            * backend/utils/sendEmail.js
            */
+
           await sendEmail(
             user.email,
             subject,
@@ -845,8 +1435,10 @@ router.post(
            * SMTP failed, therefore invalidate
            * the reset token.
            */
+
           user.resetPasswordToken =
             null;
+
 
           user.resetPasswordExpires =
             null;
@@ -865,7 +1457,8 @@ router.post(
 
       return res.json({
         success: true,
-        message: genericMessage
+        message:
+          genericMessage
       });
 
     } catch (error) {
@@ -880,9 +1473,11 @@ router.post(
        * Keep response generic even when something
        * goes wrong.
        */
+
       return res.json({
         success: true,
-        message: genericMessage
+        message:
+          genericMessage
       });
     }
   }
@@ -900,6 +1495,7 @@ router.post(
   "/reset-password/:token",
   authLimiter,
   async (req, res) => {
+
     try {
 
       const rawToken =
@@ -927,8 +1523,11 @@ router.post(
       /*
        * Same password policy as signup.
        */
+
       if (
-        !isStrongPassword(password)
+        !isStrongPassword(
+          password
+        )
       ) {
         return res
           .status(400)
@@ -942,6 +1541,7 @@ router.post(
       /*
        * Hash token from URL before searching MongoDB.
        */
+
       const hashedToken =
         crypto
           .createHash("sha256")
@@ -952,6 +1552,7 @@ router.post(
       /*
        * Token must match AND must not be expired.
        */
+
       const user =
         await User.findOne({
           resetPasswordToken:
@@ -976,6 +1577,7 @@ router.post(
       /*
        * Prevent setting exactly the same password.
        */
+
       const samePassword =
         await bcrypt.compare(
           password,
@@ -996,6 +1598,7 @@ router.post(
       /*
        * Hash new password.
        */
+
       user.password =
         await bcrypt.hash(
           password,
@@ -1006,8 +1609,10 @@ router.post(
       /*
        * Invalidate reset token immediately.
        */
+
       user.resetPasswordToken =
         null;
+
 
       user.resetPasswordExpires =
         null;
@@ -1016,8 +1621,10 @@ router.post(
       /*
        * Also remove any stale OTP.
        */
+
       user.otp =
         null;
+
 
       user.otpExpires =
         null;
