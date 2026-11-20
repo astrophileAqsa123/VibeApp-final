@@ -58,7 +58,7 @@ export default function Hero() {
             className='display hero__title'
             data-hero
             style={{
-              fontSize: 'clamp(1.75rem, 5vw, 3.25rem)',
+              fontSize: 'clamp(1.25rem, 4.6vw, 3.25rem)',
               lineHeight: 1.2,
               display: 'flex',
               flexDirection: 'column',
@@ -69,7 +69,7 @@ export default function Hero() {
             <span className='hero__title-line-1'>Describe your app,</span>
             <span
               className='hero__title-line-2'
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4em' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4em', whiteSpace: 'nowrap' }}
             >
               <span className='hero__sparkle' aria-hidden='true'>
                 <svg width='22' height='22' viewBox='0 0 24 24' fill='none'>
@@ -82,7 +82,9 @@ export default function Hero() {
                   </defs>
                 </svg>
               </span>
-              <span className='hero__title-keyword'>Preview and Ship on phone</span>
+              <span className='hero__title-keyword' style={{ whiteSpace: 'nowrap' }}>
+                Preview and Ship on phone
+              </span>
             </span>
           </h1>
           <p className='lead hero__lead' data-hero>
