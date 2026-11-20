@@ -55,9 +55,10 @@ export default function Hero() {
       <div className='container hero__layout'>
         <div className='hero__inner'>
           <h1 className='display hero__title' data-hero>
-            <span className='hero__title-line-1'>Imagine</span>
-            <span className='hero__title-line-2'>your app idea &amp;</span>
+            <span className='hero__title-line-1'>Turn your app idea</span>
+            <span className='hero__title-line-2'>into a real Flutter app</span>
             <span className='hero__title-line-3'>
+              <span>with</span>
               <span className='hero__sparkle' aria-hidden='true'>
                 <svg width='28' height='28' viewBox='0 0 24 24' fill='none'>
                   <path d='M12 2C12 7.5 7.5 12 2 12C7.5 12 12 16.5 12 22C12 16.5 16.5 12 22 12C16.5 12 12 7.5 12 2Z' fill='url(#hero-accent-grad)' />
@@ -70,7 +71,7 @@ export default function Hero() {
                   </defs>
                 </svg>
               </span>
-              <span className='hero__title-keyword'>vibeapp apps</span>
+              <span className='hero__title-keyword'>VibeApp</span>
               <span className='hero__planet' aria-hidden='true'>
                 <svg width='44' height='44' viewBox='0 0 48 48' fill='none'>
                   <defs>
@@ -90,7 +91,6 @@ export default function Hero() {
                   <ellipse cx='24' cy='24' rx='20' ry='7.5' stroke='url(#hero-ring-grad)' strokeWidth='2' fill='none' transform='rotate(-25 24 24)' strokeDasharray='36 34' strokeDashoffset='44' />
                 </svg>
               </span>
-              <span>AI</span>
             </span>
           </h1>
           <p className='lead hero__lead' data-hero>
