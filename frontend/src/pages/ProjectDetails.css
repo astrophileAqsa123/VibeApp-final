@@ -1,0 +1,109 @@
+/* ==========================================================================
+   PROJECT DETAILS PAGE — layout only (page shell, two-column workspace, stage)
+   ========================================================================== */
+
+/* ==========================================================================
+   PROJECT DETAILS — GOOGLE AI STUDIO / PROMPT-TO-APP STYLES
+   ========================================================================== */
+
+.studio-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh; /* mobile browser bar ke saath sahi height */
+  max-height: 100vh;
+  max-height: 100dvh;
+  background: var(--paper);
+  color: var(--ink);
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Main Workspace (Two Columns) ── */
+.studio-workspace {
+  display: grid;
+  grid-template-columns: 400px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  flex: 1;
+  min-height: 0; /* flex child: iske bina inner scroll kaam nahi karta */
+  overflow: hidden;
+}
+
+/* Mobile / tablet: ek waqt mein sirf ek pane (Chat ya Preview/Code), neeche tab bar se switch */
+@media (max-width: 960px) {
+  .studio-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .studio-workspace.pane-chat .studio-right-col,
+  .studio-workspace.pane-stage .studio-left-col {
+    display: none;
+  }
+  .studio-left-col {
+    border-right: 0;
+  }
+}
+
+/* ==========================================================================
+   RIGHT COLUMN: DUAL PREVIEW & CODE STUDIO
+   ========================================================================== */
+.studio-right-col {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  background: var(--paper);
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Workspace Stage (Center area) ── */
+.studio-stage {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: auto;
+  padding: 20px 20px 48px;
+  scroll-padding: 20px;
+  background: radial-gradient(circle at center, rgba(16, 185, 129, 0.03) 0%, transparent 70%);
+  position: relative;
+}
+
+.studio-stage.is-device-preview.is-desktop-preview {
+  padding: 10px;
+}
+
+/* Only preview mode is fitted. Code mode keeps the original scroll behavior. */
+.studio-stage.is-device-preview {
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 16px 20px;
+}
+
+@media (max-width: 900px) {
+  .studio-stage.is-device-preview {
+    padding: 12px;
+  }
+}
+
+.studio-stage.is-device-preview.is-bare-preview {
+  padding: 0;
+  align-items: stretch;
+}
+
+/* Code tab mobile par poori stage le (extra padding scroll kharab karta hai) */
+@media (max-width: 960px) {
+  .studio-stage:has(> .studio-code-container) {
+    padding: 0;
+  }
+}
+
+/* Loading state text */
+.studio-loading-text {
+  margin-top: 12px;
+  color: var(--muted);
+}

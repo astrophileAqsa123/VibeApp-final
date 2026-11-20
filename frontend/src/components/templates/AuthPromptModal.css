@@ -1,0 +1,45 @@
+/* ── Auth Prompt Modal ── */
+.auth-prompt-modal {
+  width: 100%;
+  max-width: 440px;
+  background: var(--studio-surface, #0f141c);
+  border: 1px solid var(--studio-border-strong, rgba(255, 255, 255, 0.16));
+  border-radius: 16px;
+  padding: 28px;
+  text-align: center;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7);
+  animation: modalSlideUp 0.25s ease-out;
+}
+
+.auth-prompt-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--studio-accent, #10b981);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  margin: 0 auto 16px;
+}
+
+.auth-prompt-modal h3 {
+  margin: 0 0 8px;
+  font-size: 1.25rem;
+  color: var(--studio-text, #f1f5f9);
+}
+
+.auth-prompt-modal p {
+  margin: 0 0 24px;
+  font-size: 0.88rem;
+  color: var(--studio-muted, #8899a6);
+  line-height: 1.5;
+}
+
+.auth-prompt-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}

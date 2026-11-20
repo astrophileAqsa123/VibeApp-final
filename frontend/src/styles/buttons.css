@@ -1,0 +1,660 @@
+/* ==========================================================================
+   VIBEAPP BUTTON SYSTEM
+   One source of truth for every button in the app (landing page buttons live
+   in Landing/common/Button.css and follow the same tokens).
+
+   Variants : primary · secondary · danger · link · icon · chip · tab
+   Sizes    : sm (30px) · md (38px, default) · lg (46px)
+   Shape    : pill for text buttons, circle for icon buttons
+   Imported last (App.jsx) so it wins over legacy per-component button rules.
+   ========================================================================== */
+
+:root {
+  --btn-h-sm: 30px;
+  --btn-h: 38px;
+  --btn-h-lg: 46px;
+  --btn-icon: 36px;
+  --btn-radius: 999px;
+  --btn-ease: 0.2s ease;
+}
+
+/* --------------------------------------------------------------------------
+   1. BASE — shared by every text button (primary / secondary / danger)
+   -------------------------------------------------------------------------- */
+.ghost-button,
+.action-button,
+.primary-link,
+.studio-run-button,
+.auth-submit,
+.apk-primary-download,
+.apk-secondary-open,
+.apk-copy-link,
+.publish-btn-primary,
+.publish-btn-cancel,
+.publish-btn-unpublish,
+.template-btn-remix,
+.template-btn-inspect,
+.inspect-remix-btn,
+.inspect-copy-btn,
+.qr-btn-open,
+.qr-btn-copy,
+.device-idle-btn,
+.studio-action-pill,
+.studio-back-btn,
+.studio-inline-btn,
+.studio-menu-trigger,
+.templates-back-btn,
+.studio-code-btn,
+.copy-sql-button,
+.studio-sql-copy-btn,
+.studio-supabase-banner-copy,
+.studio-restore-version-btn,
+.delete-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: var(--btn-h);
+  min-height: 0;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: var(--btn-radius);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    transform var(--btn-ease),
+    background-color var(--btn-ease),
+    border-color var(--btn-ease),
+    color var(--btn-ease),
+    box-shadow var(--btn-ease),
+    opacity var(--btn-ease);
+}
+
+/* --------------------------------------------------------------------------
+   2. SIZES
+   -------------------------------------------------------------------------- */
+.studio-code-btn,
+.copy-sql-button,
+.studio-sql-copy-btn,
+.inspect-copy-btn,
+.studio-supabase-banner-copy,
+.studio-restore-version-btn,
+.delete-button {
+  height: var(--btn-h-sm);
+  padding: 0 12px;
+  gap: 6px;
+  font-size: 0.75rem;
+}
+
+.auth-submit,
+.apk-primary-download,
+.apk-secondary-open,
+.apk-copy-link {
+  height: var(--btn-h-lg);
+  padding: 0 22px;
+  font-size: 0.9375rem;
+  width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   3. PRIMARY — green gradient
+   -------------------------------------------------------------------------- */
+.primary-link,
+.studio-run-button,
+.auth-submit,
+.apk-primary-download,
+.publish-btn-primary,
+.template-btn-remix,
+.inspect-remix-btn,
+.qr-btn-open,
+.device-idle-btn.primary,
+.studio-action-pill.primary {
+  background: linear-gradient(135deg, var(--teal), var(--teal-neon));
+  border-color: transparent;
+  color: #030608;
+  font-weight: 600;
+  box-shadow: 0 0 18px rgba(16, 185, 129, 0.35);
+  filter: none;
+}
+
+.primary-link:hover:not(:disabled),
+.studio-run-button:hover:not(:disabled),
+.auth-submit:hover:not(:disabled),
+.apk-primary-download:hover:not(:disabled),
+.publish-btn-primary:hover:not(:disabled),
+.template-btn-remix:hover:not(:disabled),
+.inspect-remix-btn:hover:not(:disabled),
+.qr-btn-open:hover:not(:disabled),
+.device-idle-btn.primary:hover:not(:disabled),
+.studio-action-pill.primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--teal-light), var(--teal));
+  box-shadow: 0 0 24px rgba(16, 185, 129, 0.55);
+  filter: none;
+  transform: translateY(-1px);
+}
+
+/* --------------------------------------------------------------------------
+   4. SECONDARY — outline
+   -------------------------------------------------------------------------- */
+.ghost-button,
+.action-button,
+.apk-secondary-open,
+.apk-copy-link,
+.publish-btn-cancel,
+.template-btn-inspect,
+.inspect-copy-btn,
+.qr-btn-copy,
+.device-idle-btn.secondary,
+.studio-action-pill,
+.studio-back-btn,
+.studio-inline-btn,
+.studio-menu-trigger,
+.templates-back-btn,
+.studio-code-btn,
+.copy-sql-button,
+.studio-sql-copy-btn,
+.studio-supabase-banner-copy,
+.studio-restore-version-btn {
+  background: transparent;
+  border-color: var(--line-strong);
+  color: var(--ink);
+  box-shadow: none;
+}
+
+.ghost-button:hover:not(:disabled),
+.action-button:hover:not(:disabled),
+.apk-secondary-open:hover:not(:disabled),
+.apk-copy-link:hover:not(:disabled),
+.publish-btn-cancel:hover:not(:disabled),
+.template-btn-inspect:hover:not(:disabled),
+.inspect-copy-btn:hover:not(:disabled),
+.qr-btn-copy:hover:not(:disabled),
+.device-idle-btn.secondary:hover:not(:disabled),
+.studio-action-pill:hover:not(:disabled),
+.studio-back-btn:hover:not(:disabled),
+.studio-inline-btn:hover:not(:disabled),
+.studio-menu-trigger:hover:not(:disabled),
+.studio-menu-trigger.is-open,
+.templates-back-btn:hover:not(:disabled),
+.studio-code-btn:hover:not(:disabled),
+.copy-sql-button:hover:not(:disabled),
+.studio-sql-copy-btn:hover:not(:disabled),
+.studio-supabase-banner-copy:hover:not(:disabled),
+.studio-restore-version-btn:hover:not(:disabled) {
+  background: transparent;
+  border-color: var(--teal);
+  color: var(--teal-light);
+  box-shadow: none;
+  transform: translateY(-1px);
+}
+
+/* The device "idle" buttons sit on the dark device screen in both themes */
+.device-idle-btn.secondary {
+  color: #f1f5f9;
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+/* "Copied" confirmation state */
+.qr-btn-copy.is-copied,
+.studio-sql-copy-btn.is-copied {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: var(--teal);
+  color: var(--teal-light);
+}
+
+/* Warning tone (restore old version) keeps the semantic amber */
+.studio-restore-version-btn {
+  border-color: rgba(245, 158, 11, 0.45);
+  color: var(--amber);
+}
+
+.studio-restore-version-btn:hover:not(:disabled) {
+  border-color: var(--amber);
+  color: var(--amber);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+/* Header menu status colours (building / ready) stay semantic */
+.studio-action-pill.apk-ready-pill {
+  border-color: rgba(34, 197, 94, 0.45);
+}
+
+/* --------------------------------------------------------------------------
+   5. DANGER
+   -------------------------------------------------------------------------- */
+.publish-btn-unpublish,
+.studio-action-pill.active-preview {
+  background: rgba(244, 63, 94, 0.1);
+  border-color: rgba(244, 63, 94, 0.3);
+  color: var(--coral);
+  font-weight: 600;
+}
+
+.publish-btn-unpublish:hover:not(:disabled),
+.studio-action-pill.active-preview:hover:not(:disabled) {
+  background: rgba(244, 63, 94, 0.18);
+  border-color: var(--coral);
+  color: var(--coral);
+  transform: translateY(-1px);
+}
+
+.delete-button {
+  background: transparent;
+  color: var(--muted);
+}
+
+.delete-button:hover:not(:disabled) {
+  background: rgba(244, 63, 94, 0.1);
+  border-color: rgba(244, 63, 94, 0.3);
+  color: var(--coral);
+}
+
+/* --------------------------------------------------------------------------
+   6. PRESSED + DISABLED + FOCUS (all text buttons)
+   -------------------------------------------------------------------------- */
+.ghost-button:active,
+.action-button:active,
+.primary-link:active,
+.studio-run-button:active,
+.auth-submit:active,
+.publish-btn-primary:active,
+.template-btn-remix:active,
+.qr-btn-open:active,
+.studio-action-pill:active {
+  transform: translateY(0);
+}
+
+.ghost-button:disabled,
+.action-button:disabled,
+.primary-link:disabled,
+.studio-run-button:disabled,
+.auth-submit:disabled,
+.apk-primary-download:disabled,
+.apk-secondary-open:disabled,
+.apk-copy-link:disabled,
+.publish-btn-primary:disabled,
+.publish-btn-cancel:disabled,
+.publish-btn-unpublish:disabled,
+.template-btn-remix:disabled,
+.template-btn-inspect:disabled,
+.inspect-remix-btn:disabled,
+.qr-btn-open:disabled,
+.qr-btn-copy:disabled,
+.device-idle-btn:disabled,
+.studio-action-pill:disabled,
+.studio-inline-btn:disabled,
+.studio-menu-trigger:disabled,
+.studio-code-btn:disabled,
+.studio-restore-version-btn:disabled,
+.icon-btn:disabled,
+.studio-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.studio-run-button:disabled,
+.auth-submit:disabled,
+.studio-restore-version-btn:disabled {
+  cursor: wait;
+}
+
+:is(
+  .ghost-button, .action-button, .primary-link, .studio-run-button, .auth-submit,
+  .apk-primary-download, .apk-secondary-open, .apk-copy-link, .apk-modal-close,
+  .publish-btn-primary, .publish-btn-cancel, .publish-btn-unpublish, .publish-modal-close,
+  .template-btn-remix, .template-btn-inspect, .inspect-remix-btn, .inspect-copy-btn,
+  .inspect-close-btn, .inspect-tab-btn, .qr-btn-open, .qr-btn-copy, .qr-close,
+  .device-idle-btn, .studio-action-pill, .studio-back-btn, .studio-inline-btn,
+  .studio-menu-trigger, .templates-back-btn, .studio-code-btn, .copy-sql-button,
+  .studio-sql-copy-btn, .studio-supabase-banner-copy, .studio-restore-version-btn,
+  .delete-button, .studio-chip, .studio-chip-btn, .templates-cat-chip, .qr-network-pill,
+  .studio-code-file-tab, .studio-segmented-btn, .studio-device-btn, .studio-icon-btn,
+  .studio-tool-btn, .studio-submit-btn, .studio-carousel-arrow, .studio-modal-close,
+  .studio-sheet-close, .studio-supabase-banner-toggle, .theme-toggle-btn, .icon-button,
+  .text-button, .forgot-password-link, .studio-return-latest-btn,
+  .studio-supabase-banner-link, .publish-preview-link, .templates-search-clear,
+  .generation-dismiss, .mini-game-close
+):focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   7. LINK — text-only actions
+   -------------------------------------------------------------------------- */
+.text-button,
+.forgot-password-link,
+.studio-return-latest-btn,
+.studio-supabase-banner-link,
+.publish-preview-link,
+.generation-dismiss,
+.mini-game-close {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--teal-light);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color var(--btn-ease), opacity var(--btn-ease);
+}
+
+.text-button:hover:not(:disabled),
+.forgot-password-link:hover,
+.studio-return-latest-btn:hover,
+.studio-supabase-banner-link:hover,
+.publish-preview-link:hover {
+  color: var(--teal);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.text-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.studio-return-latest-btn {
+  color: var(--amber);
+}
+
+.studio-return-latest-btn:hover {
+  color: var(--amber);
+}
+
+.generation-dismiss,
+.mini-game-close {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.generation-dismiss:hover,
+.mini-game-close:hover {
+  color: var(--ink);
+}
+
+/* --------------------------------------------------------------------------
+   8. ICON BUTTONS — circle
+   outlined: close / dismiss / theme / arrows      bare: toolbar & inline icons
+   -------------------------------------------------------------------------- */
+.qr-close,
+.apk-modal-close,
+.publish-modal-close,
+.inspect-close-btn,
+.studio-modal-close,
+.studio-sheet-close,
+.studio-carousel-arrow,
+.studio-supabase-banner-toggle,
+.theme-toggle-btn,
+.studio-icon-btn,
+.studio-tool-btn,
+.icon-button,
+.templates-search-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--btn-icon);
+  height: var(--btn-icon);
+  min-width: var(--btn-icon);
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    transform var(--btn-ease),
+    background-color var(--btn-ease),
+    border-color var(--btn-ease),
+    color var(--btn-ease);
+}
+
+.qr-close,
+.apk-modal-close,
+.publish-modal-close,
+.inspect-close-btn,
+.studio-modal-close,
+.studio-sheet-close,
+.studio-carousel-arrow,
+.studio-supabase-banner-toggle,
+.theme-toggle-btn {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.qr-close:hover,
+.apk-modal-close:hover,
+.publish-modal-close:hover,
+.inspect-close-btn:hover,
+.studio-modal-close:hover,
+.studio-sheet-close:hover,
+.studio-carousel-arrow:hover,
+.studio-supabase-banner-toggle:hover,
+.theme-toggle-btn:hover {
+  background: transparent;
+  border-color: var(--teal);
+  color: var(--teal-light);
+  transform: none;
+}
+
+.studio-icon-btn:hover,
+.studio-tool-btn:hover,
+.icon-button:hover,
+.templates-search-clear:hover {
+  background: var(--panel-elevated);
+  border-color: transparent;
+  color: var(--ink);
+}
+
+.studio-tool-btn.is-reloading {
+  color: var(--teal-light);
+  border-color: var(--teal);
+}
+
+.icon-button.favorited,
+.icon-button.favorited:hover {
+  color: var(--amber);
+  background: transparent;
+}
+
+.templates-search-clear {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+}
+
+/* Primary icon button (prompt send) */
+.studio-submit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--btn-icon);
+  height: var(--btn-icon);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--teal), var(--teal-neon));
+  color: #030608;
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.3);
+  cursor: pointer;
+  transition: transform var(--btn-ease), box-shadow var(--btn-ease), background var(--btn-ease);
+}
+
+.studio-submit-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--teal-light), var(--teal));
+  box-shadow: 0 0 22px rgba(16, 185, 129, 0.5);
+  transform: translateY(-1px);
+}
+
+.studio-submit-btn:disabled {
+  background: var(--line-strong);
+  color: var(--muted);
+}
+
+/* --------------------------------------------------------------------------
+   9. CHIPS — filters, suggestions, file tabs
+   -------------------------------------------------------------------------- */
+.studio-chip,
+.studio-chip-btn,
+.templates-cat-chip,
+.qr-network-pill,
+.studio-code-file-tab,
+.inspect-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  min-height: 0;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--btn-radius);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: none;
+  transition:
+    background-color var(--btn-ease),
+    border-color var(--btn-ease),
+    color var(--btn-ease);
+}
+
+.studio-chip:hover:not(:disabled),
+.studio-chip-btn:hover:not(:disabled),
+.templates-cat-chip:hover:not(:disabled),
+.qr-network-pill:hover:not(:disabled),
+.studio-code-file-tab:hover:not(:disabled),
+.inspect-tab-btn:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: var(--teal);
+  color: var(--ink);
+}
+
+.studio-chip.active,
+.templates-cat-chip.active,
+.qr-network-pill.is-active,
+.studio-code-file-tab.is-active,
+.inspect-tab-btn.active {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: var(--teal);
+  color: var(--teal-light);
+  font-weight: 600;
+  box-shadow: none;
+}
+
+/* the Supabase SQL file tab keeps its cyan identity */
+.studio-code-file-tab.supabase-file-tab {
+  border-color: rgba(6, 182, 212, 0.35);
+  color: var(--cyan-light);
+}
+
+.studio-code-file-tab.supabase-file-tab.is-active {
+  background: rgba(6, 182, 212, 0.14);
+  border-color: var(--cyan);
+  color: var(--cyan-light);
+  box-shadow: none;
+}
+
+/* the SQL copy chip on Build is a small secondary button, not a filter chip */
+.studio-chip.studio-sql-copy-btn {
+  height: var(--btn-h-sm);
+  padding: 0 12px;
+  font-size: 0.75rem;
+  color: var(--ink);
+}
+
+.studio-chip.studio-sql-copy-btn.is-copied {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: var(--teal);
+  color: var(--teal-light);
+}
+
+/* --------------------------------------------------------------------------
+   10. SEGMENTED TABS — inside a pill container
+   -------------------------------------------------------------------------- */
+.studio-segmented-btn,
+.studio-device-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: var(--btn-radius);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color var(--btn-ease),
+    color var(--btn-ease),
+    box-shadow var(--btn-ease);
+}
+
+.studio-segmented-btn:hover,
+.studio-device-btn:hover {
+  color: var(--ink);
+}
+
+.studio-segmented-btn.is-active,
+.studio-device-btn.is-active {
+  background: var(--panel-elevated);
+  border-color: var(--line);
+  color: var(--teal-light);
+  font-weight: 600;
+  box-shadow: none;
+}
+
+/* --------------------------------------------------------------------------
+   11. RESPONSIVE — bigger touch targets
+   -------------------------------------------------------------------------- */
+@media (max-width: 960px) {
+  .studio-icon-btn,
+  .studio-tool-btn,
+  .studio-submit-btn,
+  .studio-carousel-arrow {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+  }
+
+  .studio-code-btn {
+    min-width: 40px;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-submit,
+  .apk-primary-download,
+  .apk-secondary-open,
+  .apk-copy-link {
+    height: 44px;
+  }
+}

@@ -1,0 +1,54 @@
+/* ==========================================================================
+   LOGO COMPONENT
+   ========================================================================== */
+.landing-root .logo {
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+}
+
+.landing-root .logo__img {
+  display: block;
+  height: 52px;
+  width: auto;
+}
+
+/* Dark theme (default) -> light wordmark; light theme -> dark wordmark */
+.landing-root .logo__img--dark-text {
+  display: none;
+}
+
+[data-theme='light'] .landing-root .logo__img--dark-text {
+  display: block;
+}
+
+[data-theme='light'] .landing-root .logo__img--light-text {
+  display: none;
+}
+
+/* Forced light wordmark (e.g. on always-dark sections) */
+.landing-root .logo--light .logo__img--dark-text {
+  display: none !important;
+}
+
+.landing-root .logo--light .logo__img--light-text {
+  display: block !important;
+}
+
+.landing-root .nav .logo__img {
+  height: 60px;
+  margin: -8px 0;
+  transition: height var(--t-base) var(--ease);
+}
+
+.landing-root .nav.is-scrolled .logo__img {
+  height: 50px;
+}
+
+@media (max-width: 480px) {
+  .landing-root .logo__img,
+  .landing-root .nav .logo__img,
+  .landing-root .nav.is-scrolled .logo__img {
+    height: 44px;
+  }
+}

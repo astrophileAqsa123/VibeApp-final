@@ -1,0 +1,146 @@
+/* ==========================================================================
+   StudioToolbar (tabs, device switcher, tools)
+   ========================================================================== */
+
+/* Right top toolbar */
+.studio-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 52px;
+  min-height: 52px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  z-index: 10;
+}
+
+/* Segmented tab pill (Preview | Code) */
+.studio-segmented-tabs {
+  display: inline-flex;
+  align-items: center;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.studio-segmented-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.studio-segmented-btn.is-active {
+  background: var(--panel-elevated);
+  color: var(--ink);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.studio-segmented-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--teal-light);
+  display: inline-block;
+}
+
+/* Device frame switcher */
+.studio-device-switcher {
+  display: inline-flex;
+  align-items: center;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.studio-device-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.studio-device-btn:hover {
+  color: var(--ink);
+}
+
+.studio-device-btn.is-active {
+  background: var(--panel-elevated);
+  color: var(--teal-light);
+  font-weight: 600;
+}
+
+.studio-toolbar-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.studio-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.studio-tool-btn:hover {
+  background: var(--paper);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.studio-tool-btn.is-reloading {
+  color: var(--studio-accent, #10b981);
+  border-color: var(--studio-accent, #10b981);
+}
+
+/* ── Responsive: toolbar apne andar scroll kare, page ko na hilaye ── */
+.studio-toolbar {
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.studio-toolbar::-webkit-scrollbar { display: none; }
+.studio-toolbar > * { flex-shrink: 0; }
+
+@media (max-width: 960px) {
+  .studio-toolbar { padding: 0 12px; }
+  /* Preview/Code ab neeche MobileTabs mein hai */
+  .studio-segmented-tabs { display: none; }
+  .studio-tool-btn { width: 40px; height: 40px; }
+}
+
+/* Phones par preview frame-less hota hai, isliye device switcher ki zaroorat nahi */
+@media (max-width: 760px) {
+  .studio-device-switcher { display: none; }
+  .studio-toolbar { justify-content: flex-end; }
+}

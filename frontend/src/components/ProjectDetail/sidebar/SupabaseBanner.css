@@ -1,0 +1,135 @@
+/* ==========================================================================
+   SupabaseBanner
+   ========================================================================== */
+
+/* ── Supabase Setup Banner (Left Column) ── */
+.studio-supabase-banner {
+  margin: 12px 14px 10px 14px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.12) 0%, rgba(15, 23, 42, 0.7) 100%);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), 0 0 12px rgba(6, 182, 212, 0.1);
+  animation: fadeIn 0.25s ease-out;
+}
+
+.studio-supabase-banner-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.studio-supabase-banner-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--cyan-light, #22d3ee);
+}
+
+.studio-supabase-banner-title code {
+  background: rgba(0, 0, 0, 0.4);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  color: #38bdf8;
+  border: 1px solid rgba(6, 182, 212, 0.25);
+}
+
+.studio-supabase-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22d3ee;
+  box-shadow: 0 0 6px #22d3ee;
+}
+
+.studio-zap-icon {
+  color: #38bdf8;
+}
+
+.studio-supabase-banner-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(6, 182, 212, 0.2);
+  border: 1px solid rgba(6, 182, 212, 0.4);
+  color: #e0f2fe;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.studio-supabase-banner-copy:hover {
+  background: rgba(6, 182, 212, 0.35);
+  border-color: rgba(6, 182, 212, 0.65);
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+}
+
+.studio-supabase-banner-desc {
+  font-size: 0.72rem;
+  color: var(--muted, #94a3b8);
+  margin: 0;
+  line-height: 1.35;
+}
+
+.studio-supabase-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.studio-supabase-banner-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  color: var(--cyan-light, #22d3ee);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.studio-supabase-banner-link:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+.studio-supabase-banner-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.studio-supabase-banner-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  color: var(--cyan-light, #22d3ee);
+  cursor: pointer;
+}
+
+@media (max-width: 960px) {
+  .studio-supabase-banner { margin: 10px 12px 6px; padding: 10px 12px; }
+  .studio-supabase-banner-copy { min-height: 32px; }
+  .studio-supabase-banner-link { min-height: 36px; font-size: 0.78rem; }
+}

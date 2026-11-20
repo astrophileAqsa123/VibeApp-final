@@ -1,0 +1,119 @@
+/* ==========================================================================
+   TipsCarousel (spinner + fadeIn live in shared ProjectDetail.css)
+   ========================================================================== */
+
+/* ==========================================================================
+   TIPS CAROUSEL (GOOGLE AI STUDIO INSPIRATION)
+   ========================================================================== */
+.studio-tips-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: 600px;
+  width: 100%;
+  text-align: center;
+  animation: fadeIn 0.3s ease;
+}
+
+.studio-tips-kicker {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.studio-tips-headline {
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+  margin: 0 0 28px;
+}
+
+.studio-carousel-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.studio-carousel-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.studio-carousel-arrow:hover {
+  border-color: var(--teal);
+  color: var(--teal-light);
+  transform: scale(1.06);
+}
+
+.studio-carousel-card {
+  flex: 1;
+  max-width: 380px;
+  min-height: 280px;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 20px;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+.studio-tip-icon {
+  font-size: 2.2rem;
+  margin-bottom: 16px;
+}
+
+.studio-tip-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 10px;
+}
+
+.studio-tip-desc {
+  font-size: 0.86rem;
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.studio-carousel-dots {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.studio-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--line-strong);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.studio-dot.is-active {
+  background: var(--teal);
+  width: 20px;
+  border-radius: 999px;
+}

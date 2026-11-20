@@ -1,0 +1,54 @@
+/* ==========================================================================
+   PromptSidebar (aside wrapper + header)
+   ========================================================================== */
+
+/* ==========================================================================
+   LEFT COLUMN: PROMPT STREAM & CHAT
+   ========================================================================== */
+.studio-left-col {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  position: relative;
+  overflow: hidden;
+}
+
+.studio-left-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.studio-model-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.studio-sparkle-icon {
+  color: var(--teal-light);
+  font-size: 0.95rem;
+}
+
+/* Layout helpers (previously inline styles) */
+.studio-model-sub {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.studio-return-latest-icon {
+  vertical-align: middle;
+  margin-right: 4px;
+}

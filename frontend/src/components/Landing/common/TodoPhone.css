@@ -1,0 +1,407 @@
+/* ==========================================================================
+   TODOPHONE COMPONENT
+   ========================================================================== */
+.landing-root .phone {
+  --phone-w: clamp(240px, 34vh, 340px);
+  width: var(--phone-w);
+  aspect-ratio: 9 / 19;
+  font-size: clamp(11px, calc(var(--phone-w) * 0.046), 15px);
+  padding: 0.6em;
+  border-radius: 3.4em;
+  background: var(--dark);
+  border: 1px solid rgba(243, 244, 239, 0.1);
+  box-shadow:
+    var(--shadow-phone),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.6);
+  color: var(--on-dark);
+  line-height: 1.4;
+}
+
+/* ── 3D depth ── */
+.landing-root .phone--3d {
+  position: relative;
+  transform-style: preserve-3d;
+}
+
+/* Two stacked layers behind the face to create visible side thickness */
+.landing-root .phone__edge {
+  position: absolute;
+  inset: 0;
+  border-radius: 3.4em;
+  background: #1b1b2f;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  pointer-events: none;
+}
+.landing-root .phone__edge--1 { transform: translateZ(-4px); }
+.landing-root .phone__edge--2 { transform: translateZ(-9px); background: #0e0e1a; }
+
+/* Side hardware buttons */
+.landing-root .phone__btn {
+  position: absolute;
+  width: 3px;
+  border-radius: 2px;
+  background: rgba(180, 185, 210, 0.35);
+  pointer-events: none;
+  z-index: 10;
+}
+/* Power button — right edge */
+.landing-root .phone__btn--power  { right: -3px; top: 28%; height: 10%; }
+/* Volume buttons — left edge */
+.landing-root .phone__btn--vol-up { left: -3px;  top: 22%; height: 7%; }
+.landing-root .phone__btn--vol-dn { left: -3px;  top: 31%; height: 7%; }
+
+.landing-root .phone__screen {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 2.8em;
+  background: var(--dark-2);
+}
+
+/* Glass reflection overlay — subtle diagonal sheen on screen */
+.landing-root .phone__glass {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  border-radius: 2.8em;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.09) 0%,
+    rgba(255, 255, 255, 0.03) 35%,
+    transparent 60%
+  );
+}
+
+/* Contact shadow — ellipse blur below phone */
+.landing-root .phone__shadow {
+  position: absolute;
+  bottom: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 58%;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  filter: blur(14px);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.landing-root .phone__island {
+  position: absolute;
+  top: 0.9em;
+  left: 50%;
+  z-index: 8;
+  width: 6.5em;
+  height: 1.9em;
+  border-radius: 999px;
+  background: var(--dark);
+  transform: translateX(-50%);
+}
+
+.landing-root .phone__status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.4em 1.8em 0;
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.landing-root .phone__status-right {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.22em;
+}
+
+.landing-root .phone__status-right i {
+  width: 0.32em;
+  height: 0.6em;
+  border-radius: 1px;
+  background: var(--on-dark);
+}
+
+.landing-root .phone__status-right i:nth-child(2) {
+  height: 0.8em;
+}
+
+.landing-root .phone__status-right i:nth-child(3) {
+  height: 1em;
+}
+
+/* List screen inside phone */
+.landing-root .todo-list {
+  position: absolute;
+  inset: 3.6em 0 0 0;
+  padding: 0.8em 1.3em 1.3em;
+  transform-origin: center top;
+}
+
+.landing-root .todo__header {
+  margin-bottom: 1.4em;
+}
+
+.landing-root .todo__date {
+  font-size: 0.72em;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--on-dark-muted);
+}
+
+.landing-root .todo__title {
+  margin-top: 0.15em;
+  font-size: 1.7em;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.landing-root .todo__progress {
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+  margin-top: 1em;
+}
+
+.landing-root .todo__progress-bar {
+  flex: 1;
+  height: 0.3em;
+  border-radius: 999px;
+  background: rgba(243, 244, 239, 0.1);
+  overflow: hidden;
+}
+
+.landing-root .todo__progress-fill {
+  display: block;
+  width: 33.3%;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent-2);
+}
+
+.landing-root .todo__progress-label {
+  position: relative;
+  min-width: 6.5em;
+  font-size: 0.72em;
+  color: var(--on-dark-muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.landing-root .todo__progress-label span {
+  display: block;
+}
+
+.landing-root .todo__progress-label span + span {
+  position: absolute;
+  inset: 0;
+}
+
+.landing-root .todo__group + .todo__group {
+  margin-top: 1.2em;
+}
+
+.landing-root .todo__group-title {
+  margin-bottom: 0.7em;
+  font-size: 0.72em;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--on-dark-muted);
+}
+
+.landing-root .todo-slot {
+  margin-bottom: 0.5em;
+  overflow: hidden;
+}
+
+.landing-root .todo-slot:last-child {
+  margin-bottom: 0;
+}
+
+.landing-root .todo-task {
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+  padding: 0.85em 0.9em;
+  border-radius: 0.9em;
+  background: var(--dark-3);
+  border: 1px solid rgba(243, 244, 239, 0.04);
+}
+
+.landing-root .todo-task__check {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.3em;
+  height: 1.3em;
+  border-radius: 50%;
+  border: 1.5px solid rgba(243, 244, 239, 0.28);
+  font-size: 0.8em;
+  color: var(--dark);
+}
+
+.landing-root .todo-task--done .todo-task__check {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.landing-root .todo-task__label {
+  font-size: 0.95em;
+  font-weight: 500;
+}
+
+.landing-root .todo-task--done .todo-task__label {
+  color: var(--on-dark-muted);
+  text-decoration: line-through;
+}
+
+.landing-root .todo__fab {
+  position: absolute;
+  right: 1.3em;
+  bottom: 1.3em;
+  display: grid;
+  place-items: center;
+  width: 3.2em;
+  height: 3.2em;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--dark);
+  font-size: 1.1em;
+  box-shadow: 0 10px 24px -8px rgba(124, 255, 107, 0.5);
+}
+
+/* Editor screen inside phone */
+.landing-root .todo-editor {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  padding: 3.6em 1.3em 1.3em;
+  background: var(--dark-2);
+}
+
+.landing-root .todo-editor__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2.2em;
+}
+
+.landing-root .todo-editor__back {
+  display: grid;
+  place-items: center;
+  width: 2.2em;
+  height: 2.2em;
+  border-radius: 50%;
+  border: 1px solid rgba(243, 244, 239, 0.14);
+}
+
+.landing-root .todo-editor__heading {
+  font-size: 0.95em;
+  font-weight: 500;
+}
+
+.landing-root .todo-editor__save {
+  padding: 0.45em 0.95em;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--dark);
+  font-size: 0.8em;
+  font-weight: 600;
+}
+
+.landing-root .todo-editor__label {
+  margin-bottom: 0.6em;
+  font-size: 0.72em;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--on-dark-muted);
+}
+
+.landing-root .todo-editor__input {
+  position: relative;
+  min-height: 2.6em;
+  padding-bottom: 0.5em;
+  border-bottom: 1px solid rgba(243, 244, 239, 0.14);
+  font-size: 1.5em;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.landing-root .todo-editor__placeholder {
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: rgba(243, 244, 239, 0.3);
+}
+
+.landing-root .todo-editor__text {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.landing-root .todo-editor__cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  background: var(--accent);
+  animation: blink 1s steps(2, start) infinite;
+}
+
+.landing-root .todo-editor__meta {
+  display: flex;
+  gap: 0.6em;
+  margin-top: 1.4em;
+}
+
+.landing-root .todo-editor__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  padding: 0.5em 0.8em;
+  border-radius: 999px;
+  border: 1px solid rgba(243, 244, 239, 0.14);
+  font-size: 0.78em;
+  color: var(--on-dark-muted);
+}
+
+/* Saved toast */
+.landing-root .todo-toast-wrap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 1.6em;
+  z-index: 6;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.landing-root .todo-toast {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.6em 1em;
+  border-radius: 999px;
+  background: var(--dark);
+  border: 1px solid rgba(85, 214, 138, 0.45);
+  font-size: 0.85em;
+  font-weight: 500;
+  color: var(--accent-2);
+}
+
+/* ── Mobile: skip heavy 3D layers ── */
+@media (max-width: 767px) {
+  .landing-root .phone__edge { display: none; }
+  .landing-root .phone__shadow { filter: blur(10px); opacity: 0.7; }
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .landing-root .phone--3d { transform: none !important; animation: none !important; }
+  .landing-root .phone__edge { display: none; }
+}

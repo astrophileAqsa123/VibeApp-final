@@ -1,0 +1,243 @@
+/* ==========================================================================
+   HERO COMPONENT — Centered Layout with Theme Colors
+   ========================================================================== */
+
+.landing-root .hero {
+  position: relative;
+  min-height: min(840px, 100svh);
+  padding-top: calc(var(--nav-h) + clamp(48px, 9vh, 96px));
+  padding-bottom: clamp(60px, 10vh, 100px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: clip;
+  isolation: isolate;
+  background-color: var(--bg);
+}
+
+.landing-root .hero__layout {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.landing-root .hero__inner {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 20px;
+  max-width: 920px;
+  margin-inline: auto;
+}
+
+/* ── Typography & 3-Line Heading (Layout from Reference) ── */
+
+.landing-root .hero__title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(3.2rem, 7.2vw, 5.8rem);
+  font-weight: 400;
+  line-height: 1.14;
+  letter-spacing: -0.035em;
+  text-align: center;
+  margin-inline: auto;
+  max-width: 18ch;
+  color: var(--text);
+}
+
+.landing-root .hero__title-line-1 {
+  display: block;
+  color: var(--text);
+}
+
+.landing-root .hero__title-line-2 {
+  display: block;
+  color: var(--text);
+}
+
+.landing-root .hero__title-line-3 {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.18em;
+  color: var(--text);
+  flex-wrap: wrap;
+}
+
+.landing-root .hero__title-keyword {
+  color: var(--text);
+}
+
+/* Inline Sparkle Icon — uses Theme Accent */
+.landing-root .hero__sparkle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 0.08em;
+  filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.45));
+  vertical-align: middle;
+}
+
+.landing-root .hero__sparkle svg {
+  width: 0.48em;
+  height: 0.48em;
+}
+
+/* Inline Planet / Orb Icon — uses Theme Accent */
+.landing-root .hero__planet {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-inline: 0.08em;
+  filter: drop-shadow(0 0 14px rgba(0, 245, 160, 0.4));
+  vertical-align: middle;
+}
+
+.landing-root .hero__planet svg {
+  width: 0.76em;
+  height: 0.76em;
+}
+
+/* ── Subtitle / Lead ── */
+
+.landing-root .hero__lead {
+  font-size: clamp(14px, 1.2vw, 16px);
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 580px;
+  margin-inline: auto;
+  text-align: center;
+  font-weight: 400;
+  margin-top: 4px;
+}
+
+/* ── Centered Action Buttons (using Theme Buttons) ── */
+
+.landing-root .hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+/* ── Ambient Background (Reverted to Theme Palette) ── */
+
+.landing-root .hero__ambient {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Center Glow using Theme Accent */
+.landing-root .hero__glow {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(720px, 85vw);
+  height: min(420px, 50vh);
+  background: radial-gradient(ellipse at center, rgba(16, 185, 129, 0.08) 0%, rgba(0, 245, 160, 0.03) 45%, transparent 70%);
+  filter: blur(50px);
+  border-radius: 50%;
+}
+
+/* Perspective Grid from Original Theme */
+.landing-root .hero__grid {
+  position: absolute;
+  inset: 8% -15% -30% -15%;
+  opacity: 0.35;
+  background-image: linear-gradient(rgba(16, 185, 129, 0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(16, 185, 129, 0.06) 1px, transparent 1px);
+  background-size: 48px 48px;
+  transform: perspective(650px) rotateX(64deg) rotateZ(-8deg);
+  transform-origin: center 70%;
+  mask-image: linear-gradient(to bottom, transparent, #000 24%, #000 72%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 24%, #000 72%, transparent);
+}
+
+/* Ambient Floating Orbs from Original Theme */
+.landing-root .hero__orb {
+  position: absolute;
+  width: 34vw;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  filter: blur(75px);
+  opacity: 0.16;
+  will-change: transform;
+}
+
+.landing-root .hero__orb--one {
+  right: 2%;
+  top: 2%;
+  background: var(--accent-2);
+}
+
+.landing-root .hero__orb--two {
+  right: 30%;
+  bottom: -20%;
+  background: #6d5dfc;
+  opacity: 0.11;
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 900px) {
+  .landing-root .hero {
+    min-height: auto;
+    padding-top: calc(var(--nav-h) + 40px);
+    padding-bottom: 60px;
+  }
+}
+
+@media (max-width: 600px) {
+  .landing-root .hero__inner {
+    gap: 16px;
+  }
+
+  .landing-root .hero__title {
+    font-size: clamp(2.4rem, 11vw, 3.4rem);
+    line-height: 1.15;
+  }
+
+  .landing-root .hero__sparkle svg {
+    width: 0.52em;
+    height: 0.52em;
+  }
+
+  .landing-root .hero__planet svg {
+    width: 0.74em;
+    height: 0.74em;
+  }
+
+  .landing-root .hero__lead {
+    font-size: 14px;
+    padding-inline: 12px;
+  }
+
+  .landing-root .hero__actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+  }
+
+  .landing-root .hero__actions .btn {
+    width: 100%;
+    max-width: 280px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-root .hero__orb {
+    transform: none !important;
+  }
+}

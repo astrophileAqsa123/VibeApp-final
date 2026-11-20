@@ -364,29 +364,21 @@ async function hasValidEmailDomain(email) {
   3. DNS/MX existence
 */
 
+
 async function isValidEmail(email) {
-
-  const normalized =
-    normalizeEmail(email);
-
+  const normalized = normalizeEmail(email);
 
   if (!hasValidEmailFormat(normalized)) {
     return false;
   }
 
-
   if (!hasValidDomainStructure(normalized)) {
     return false;
   }
 
-
-  const domainIsValid =
-    await hasValidEmailDomain(
-      normalized
-    );
-
-
-  return domainIsValid;
+  // Do not reject valid emails because of DNS failures.
+  // OTP verification will confirm email ownership.
+  return true;
 }
 
 

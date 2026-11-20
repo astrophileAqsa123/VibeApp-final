@@ -1,0 +1,145 @@
+/* ==========================================================================
+   PromptInput (chips + textarea + submit)
+   ========================================================================== */
+
+/* Prompt Input Bar (Matching Google AI Studio) */
+.studio-input-container {
+  padding: 14px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+}
+
+/* Quick chips */
+.studio-quick-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.studio-chip-btn {
+  font-size: 0.72rem;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.studio-chip-btn:hover {
+  color: var(--ink);
+  border-color: var(--teal);
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.studio-input-box {
+  position: relative;
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  border-radius: 18px;
+  padding: 10px 14px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.studio-input-box:focus-within {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
+}
+
+.studio-prompt-textarea {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  outline: none;
+  resize: none;
+  color: var(--ink);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  padding: 0;
+  min-height: 48px;
+  max-height: 140px;
+}
+
+.studio-prompt-textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+.studio-input-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+  padding-top: 4px;
+}
+
+.studio-input-actions-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.studio-input-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.studio-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.studio-icon-btn:hover {
+  color: var(--ink);
+  background: var(--panel-elevated);
+}
+
+.studio-submit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--teal);
+  color: #ffffff;
+  border: 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.studio-submit-btn:hover:not(:disabled) {
+  background: var(--teal-light);
+  transform: scale(1.06);
+}
+
+.studio-submit-btn:disabled {
+  background: var(--line-strong);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+/* ── Responsive ── */
+@media (max-width: 960px) {
+  .studio-input-container { padding: 10px 12px; }
+  /* iOS Safari 16px se chhote font par focus par zoom kar deta hai */
+  .studio-prompt-textarea { font-size: 16px; }
+  .studio-icon-btn { width: 40px; height: 40px; }
+  .studio-submit-btn { width: 40px; height: 40px; }
+}
+
+@media (max-width: 960px) {
+  .studio-chip-btn { padding: 8px 12px; font-size: 0.78rem; }
+}

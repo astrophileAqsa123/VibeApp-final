@@ -1,0 +1,289 @@
+/* ==========================================================================
+   HeaderMenu (Responsive inline actions + labeled dropdown / bottom sheet)
+   ========================================================================== */
+.studio-actions-group {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Wide Desktop Inline Buttons ── */
+.studio-inline-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.studio-inline-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: var(--panel-elevated, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.studio-inline-btn:hover:not(:disabled) {
+  border-color: var(--teal);
+  color: var(--teal-light);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.studio-inline-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.studio-inline-supabase {
+  border-color: rgba(6, 182, 212, 0.35);
+  color: var(--cyan-light, #22d3ee);
+}
+
+/* ── Labeled Trigger Button ── */
+.studio-menu-trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: var(--panel-elevated, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.studio-menu-trigger:hover,
+.studio-menu-trigger.is-open {
+  background: var(--panel-elevated);
+  border-color: var(--teal);
+  color: var(--teal-light);
+}
+
+.studio-trigger-chevron {
+  font-size: 0.9rem;
+  transition: transform 0.2s ease;
+}
+
+.studio-trigger-chevron.is-rotated {
+  transform: rotate(180deg);
+}
+
+/* Status indicator dot inside trigger */
+.studio-trigger-dot {
+  display: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.studio-menu-trigger.is-building .studio-trigger-dot {
+  display: inline-block;
+  background: #f59e0b;
+  animation: pulseDot 1.4s infinite ease-in-out;
+}
+
+.studio-menu-trigger.is-ready {
+  border-color: rgba(34, 197, 94, 0.45);
+  color: #22c55e;
+}
+
+.studio-menu-trigger.is-ready .studio-trigger-dot {
+  display: inline-block;
+  background: #22c55e;
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+/* Visibility switching between wide desktop and compact screens */
+.studio-trigger-label-compact,
+.studio-compact-only,
+.studio-sheet-header {
+  display: none;
+}
+
+.studio-trigger-label-wide {
+  display: inline;
+}
+
+/* ── Dropdown Panel ── */
+.studio-menu-backdrop {
+  display: none;
+}
+
+.studio-menu-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 260px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--panel-elevated, var(--panel));
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  z-index: 50;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.studio-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.studio-menu-item svg {
+  flex-shrink: 0;
+  font-size: 1rem;
+  color: var(--teal-light);
+}
+
+.studio-menu-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.studio-menu-item-text small {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.studio-menu-item:hover:not(:disabled) {
+  background: var(--paper);
+  color: var(--teal-light);
+}
+
+.studio-menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.studio-menu-item.apk-ready-pill {
+  color: #22c55e;
+}
+
+/* ── Tablet & Narrow Desktop (< 1024px): Collapse inline buttons into labeled pill ── */
+@media (max-width: 1024px) {
+  .studio-inline-actions,
+  .studio-trigger-label-wide {
+    display: none;
+  }
+
+  .studio-trigger-label-compact,
+  .studio-compact-only {
+    display: inline-flex;
+  }
+
+  .studio-compact-only {
+    width: 100%;
+  }
+}
+
+/* ── Mobile (< 760px): Bottom Sheet with handle & title ── */
+@media (max-width: 760px) {
+  .studio-hide-mobile {
+    display: none;
+  }
+
+  .studio-menu-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(2px);
+    z-index: 49;
+  }
+
+  .studio-menu-panel {
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    min-width: 0;
+    padding: 10px 14px calc(16px + env(safe-area-inset-bottom, 0px));
+    border-radius: 18px 18px 0 0;
+    border-bottom: 0;
+    z-index: 50;
+    gap: 6px;
+  }
+
+  .studio-sheet-header {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-bottom: 8px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .studio-sheet-handle {
+    width: 36px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--line-strong);
+    margin: 0 auto;
+  }
+
+  .studio-sheet-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--muted);
+  }
+
+  .studio-sheet-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+  }
+
+  .studio-menu-item {
+    min-height: 54px;
+    font-size: 0.94rem;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--line);
+  }
+}

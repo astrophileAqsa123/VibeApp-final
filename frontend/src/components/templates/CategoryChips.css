@@ -1,0 +1,36 @@
+/* ── Category Chips ── */
+.templates-categories {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.templates-cat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--studio-surface, #0f141c);
+  border: 1px solid var(--studio-border, rgba(255, 255, 255, 0.08));
+  color: var(--studio-muted, #8899a6);
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 0.84rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.templates-cat-chip:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--studio-text, #f1f5f9);
+}
+
+.templates-cat-chip.active {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: var(--studio-accent, #10b981);
+  color: var(--studio-accent-light, #34d399);
+  font-weight: 600;
+}

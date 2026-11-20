@@ -1,0 +1,81 @@
+/* ==========================================================================
+   SHARED — used by several ProjectDetail components (action pill, spinner, keyframes)
+   ========================================================================== */
+
+.studio-action-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.studio-action-pill:hover:not(:disabled) {
+  background: var(--panel-elevated);
+  border-color: var(--teal);
+  color: var(--teal-light);
+}
+
+.studio-action-pill:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.studio-action-pill.primary {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
+}
+
+.studio-action-pill.primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #34d399, #059669);
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.45);
+}
+
+.studio-action-pill.active-preview {
+  background: rgba(244, 63, 94, 0.12);
+  color: #f43f5e;
+  border-color: rgba(244, 63, 94, 0.3);
+}
+
+.studio-action-pill.active-preview:hover:not(:disabled) {
+  background: rgba(244, 63, 94, 0.2);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.studio-tips-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(16, 185, 129, 0.25);
+  border-top-color: var(--teal-light);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spin-icon {
+  animation: spin 0.8s linear infinite;
+}
+
+/* Mobile par bekaar buttons (jaise "scan QR" jab user pehle se phone par hai) */
+@media (max-width: 760px) {
+  .studio-hide-mobile {
+    display: none !important;
+  }
+}

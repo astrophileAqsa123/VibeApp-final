@@ -1,0 +1,127 @@
+/* ==========================================================================
+   StudioHeader + ApkButton
+   ========================================================================== */
+
+/* ── Top Header Bar ── */
+.studio-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  min-height: 56px;
+  padding: 0 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  z-index: 20;
+}
+
+.studio-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.studio-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.studio-back-btn:hover {
+  background: var(--panel-elevated);
+  border-color: var(--teal);
+  color: var(--teal-light);
+}
+
+.studio-header-center {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.studio-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+  max-width: 320px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.studio-version-pill {
+  font-size: 0.72rem;
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--teal-light);
+  border: 1px solid rgba(16, 185, 129, 0.24);
+}
+
+.studio-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* APK is built asynchronously after preview validation. Once cached, make the
+   action read as a download rather than another expensive build operation. */
+.studio-action-pill.apk-ready-pill {
+  border-color: rgba(34, 197, 94, 0.45);
+}
+
+/* ── Responsive: header ek line mein; secondary actions "⋯" menu mein ── */
+.studio-header { position: relative; z-index: 40; }
+.studio-header-left { min-width: 0; flex: 1 1 auto; }
+.studio-header-center { min-width: 0; }
+.studio-title { min-width: 0; }
+.studio-version-pill { flex-shrink: 0; }
+.studio-header-right { flex-shrink: 0; }
+.studio-header-right .studio-action-pill > span:not(.studio-tips-spinner) {
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 960px) {
+  .studio-header { gap: 8px; padding: 0 10px; }
+  .studio-header-left { gap: 8px; }
+  .studio-header-center { flex: 1 1 auto; }
+  .studio-title { flex: 1 1 auto; max-width: none; }
+  .studio-header-right { gap: 6px; }
+
+  .studio-header .studio-back-btn {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .studio-header .studio-back-btn span { display: none; }
+  .studio-header .studio-menu-trigger { width: 38px; height: 38px; padding: 0; }
+}
+
+/* Chhoti screen par Run/Stop bhi icon-only */
+@media (max-width: 560px) {
+  .studio-header-right .studio-action-pill {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .studio-header-right .studio-action-pill > span:not(.studio-tips-spinner) { display: none; }
+}

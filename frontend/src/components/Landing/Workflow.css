@@ -1,0 +1,150 @@
+/* ==========================================================================
+   WORKFLOW COMPONENT
+   ========================================================================== */
+.landing-root .workflow {
+  border-top: 1px solid var(--line);
+}
+
+.landing-root .workflow__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: start;
+}
+
+.landing-root .workflow__head {
+  position: sticky;
+  top: calc(var(--nav-h-compact) + 48px);
+  display: grid;
+  gap: 20px;
+}
+
+.landing-root .workflow__steps {
+  position: relative;
+  padding-left: 40px;
+}
+
+.landing-root .workflow__line {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 0;
+  width: 1px;
+  background: var(--line);
+}
+
+.landing-root .workflow__line-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--accent-2);
+  transform: scaleY(0);
+  transform-origin: top;
+}
+
+.landing-root .step {
+  position: relative;
+  padding: 40px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.landing-root .step:first-child {
+  padding-top: 0;
+}
+
+.landing-root .step:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.landing-root .step::before {
+  content: '';
+  position: absolute;
+  left: -44px;
+  top: 46px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  transition:
+    background-color var(--t-base) var(--ease),
+    border-color var(--t-base) var(--ease),
+    box-shadow var(--t-base) var(--ease);
+}
+
+.landing-root .step:first-child::before {
+  top: 6px;
+}
+
+.landing-root .step.is-active::before {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(124, 255, 107, 0.18);
+}
+
+.landing-root .step__num {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  transition: color var(--t-base) var(--ease);
+}
+
+.landing-root .step.is-active .step__num {
+  color: var(--accent-2);
+}
+
+.landing-root .step__title {
+  margin: 8px 0 12px;
+  font-size: clamp(1.5rem, 2.4vw, 2rem);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+}
+
+.landing-root .step__text {
+  max-width: 30em;
+}
+
+@media (max-width: 1023px) {
+  .landing-root .workflow__grid {
+    grid-template-columns: 1fr;
+    gap: 56px;
+  }
+
+  .landing-root .workflow__head {
+    position: static;
+  }
+
+  .landing-root .step {
+    padding: 32px 0;
+  }
+
+  .landing-root .step::before {
+    top: 38px;
+  }
+}
+
+@media (max-width: 767px) {
+  .landing-root .workflow__grid {
+    gap: 36px;
+  }
+  .landing-root .workflow__steps {
+    padding-left: 28px;
+  }
+  .landing-root .step {
+    padding: 24px 0;
+  }
+  .landing-root .step::before {
+    left: -32px;
+    width: 8px;
+    height: 8px;
+    top: 30px;
+  }
+  .landing-root .step:first-child::before {
+    top: 4px;
+  }
+  .landing-root .step__title {
+    font-size: clamp(1.25rem, 5vw, 1.6rem);
+  }
+}

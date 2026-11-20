@@ -1,0 +1,108 @@
+/* ==========================================================================
+   DARK STATEMENT COMPONENT (FOR DEVELOPERS)
+   ========================================================================== */
+.landing-root .dev {
+  border-top: 1px solid var(--line-dark);
+}
+
+.landing-root .dev__grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 64px;
+  align-items: start;
+}
+
+.landing-root .dev__copy {
+  display: grid;
+  gap: 28px;
+}
+
+.landing-root .dev__accent {
+  color: var(--accent);
+}
+
+.landing-root .dev__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px;
+}
+
+.landing-root .dev__cmd {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line-dark);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--on-dark);
+}
+
+.landing-root .dev__cmd span {
+  color: var(--on-dark-muted);
+}
+
+.landing-root .dev__cmd b {
+  font-weight: 500;
+  color: var(--accent-2);
+}
+
+.landing-root .dev__points li {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: 16px;
+  padding: 28px 0;
+  border-top: 1px solid var(--line-dark);
+}
+
+.landing-root .dev__points li:last-child {
+  border-bottom: 1px solid var(--line-dark);
+}
+
+.landing-root .dev__num {
+  padding-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  color: var(--accent-2);
+}
+
+.landing-root .dev__point-title {
+  margin-bottom: 6px;
+  font-size: 1.0625rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+@media (max-width: 1023px) {
+  .landing-root .dev__grid {
+    grid-template-columns: 1fr;
+    gap: 48px;
+  }
+}
+
+@media (max-width: 767px) {
+  .landing-root .dev__grid {
+    gap: 36px;
+  }
+  .landing-root .dev__actions {
+    gap: 14px;
+  }
+  .landing-root .dev__cmd {
+    font-size: 0.75rem;
+    padding: 10px 12px;
+  }
+  .landing-root .dev__points li {
+    grid-template-columns: 32px 1fr;
+    gap: 12px;
+    padding: 20px 0;
+  }
+}
+@media (max-width: 480px) {
+  .landing-root .dev__actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

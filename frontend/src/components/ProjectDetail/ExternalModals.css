@@ -1,0 +1,239 @@
+/* ==========================================================================
+   STYLES FOR MODALS THAT LIVE OUTSIDE THIS FOLDER (ApkDownloadModal, MobileQRModal).
+   Kept here so nothing breaks. Later: move the .apk-* rules to components/ApkDownloadModal.css
+   and .qr-network-options to components/MobileQRModal.css, then import them in those components.
+   The .engineering-* rules are NOT used by ProjectDetails.jsx — run:
+   grep -r "engineering-report" src   and delete them if nothing else uses them.
+   ========================================================================== */
+
+/* ── Secure APK download / QR modal ─────────────────────────────────────── */
+.apk-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(7, 20, 16, 0.58);
+  backdrop-filter: blur(10px);
+}
+
+.apk-modal-card {
+  width: min(760px, 96vw);
+  max-height: 92vh;
+  overflow: auto;
+  border: 1px solid var(--border, rgba(29, 72, 60, 0.16));
+  border-radius: 24px;
+  background: #ffffff;
+  color: #17211e;
+  box-shadow: 0 28px 80px rgba(10, 32, 25, 0.28);
+  padding: 24px;
+}
+
+.apk-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 16px;
+}
+
+.apk-modal-header h2 {
+  margin: 2px 0 0;
+  font-size: clamp(1.45rem, 3vw, 2rem);
+  color: #17211e;
+}
+
+.apk-modal-card .eyebrow {
+  color: #13a777;
+}
+
+.apk-modal-card strong {
+  color: #17211e;
+}
+
+.apk-modal-card .apk-signing-badge.secure span,
+.apk-modal-card .apk-signing-badge.warning span {
+  color: inherit;
+}
+
+.apk-modal-close {
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--border, #dce6e2);
+  border-radius: 12px;
+  background: #ffffff;
+  color: #455b54;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.apk-signing-badge {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 13px;
+  margin-bottom: 20px;
+  border-radius: 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.apk-signing-badge.secure {
+  background: rgba(30, 137, 89, 0.1);
+  color: #19744f;
+  border: 1px solid rgba(30, 137, 89, 0.22);
+}
+
+.apk-signing-badge.warning {
+  background: rgba(192, 127, 28, 0.1);
+  color: #8a5b13;
+  border: 1px solid rgba(192, 127, 28, 0.22);
+}
+
+.apk-modal-grid {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.9fr) minmax(280px, 1.1fr);
+  gap: 20px;
+}
+
+.apk-qr-panel,
+.apk-download-panel {
+  border: 1px solid var(--border, #dde7e3);
+  border-radius: 18px;
+  padding: 20px;
+  background: #f8fbfa;
+  color: #17211e;
+}
+
+.apk-qr-panel {
+  text-align: center;
+}
+
+.apk-qr-code {
+  width: fit-content;
+  padding: 14px;
+  margin: 0 auto 14px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #e1e8e5;
+}
+
+.apk-qr-panel strong {
+  display: block;
+  margin-bottom: 7px;
+}
+
+.apk-qr-panel p,
+.apk-security-note {
+  color: #6b7a74;
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.apk-download-meta {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.apk-download-meta > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 10px 12px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 0.82rem;
+}
+
+.apk-download-meta span {
+  color: #708079;
+}
+
+.apk-download-meta strong {
+  text-align: right;
+}
+
+.apk-primary-download,
+.apk-secondary-open,
+.apk-copy-link {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border-radius: 12px;
+  font: inherit;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.apk-primary-download {
+  border: 0;
+  background: var(--teal, #1c6c59);
+  color: #fff;
+  margin-bottom: 9px;
+}
+
+.apk-secondary-open,
+.apk-copy-link {
+  border: 1px solid var(--border, #dce6e2);
+  background: #ffffff;
+  color: #24332e;
+  margin-top: 9px;
+}
+
+.apk-security-note {
+  margin: 16px 2px 0;
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .apk-modal-overlay {
+    padding: 10px;
+    align-items: end;
+  }
+
+  .apk-modal-card {
+    width: 100%;
+    max-height: 94vh;
+    border-radius: 22px 22px 12px 12px;
+    padding: 18px;
+  }
+
+  .apk-modal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .apk-qr-code canvas {
+    width: min(190px, 48vw) !important;
+    height: auto !important;
+  }
+}
+
+/* Engineering readiness panel */
+.engineering-report-card{margin:16px 0;padding:18px;border:1px solid var(--border);border-radius:18px;background:var(--panel,#0f172a);box-shadow:0 12px 30px rgba(2,6,23,.12)}
+.engineering-report-head{display:flex;justify-content:space-between;gap:16px;align-items:center}.engineering-report-head h3{margin:2px 0 0;font-size:1.12rem}.engineering-score-badge{min-width:54px;height:54px;border-radius:16px;display:grid;place-items:center;font-weight:800;background:rgba(45,212,191,.12);border:1px solid rgba(45,212,191,.28)}
+.engineering-metrics{display:flex;flex-wrap:wrap;gap:7px;margin:14px 0}.engineering-metrics span{font-size:.72rem;padding:5px 8px;border-radius:999px;background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.16)}
+.engineering-stage-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}.engineering-stage{display:flex;gap:9px;align-items:flex-start;padding:9px 10px;border-radius:11px;background:rgba(148,163,184,.07);font-size:.78rem}.engineering-stage-icon{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-weight:800;flex:0 0 auto}.status-passed .engineering-stage-icon{background:rgba(34,197,94,.16)}.status-failed .engineering-stage-icon{background:rgba(239,68,68,.16)}.status-warning .engineering-stage-icon,.status-pending_runtime .engineering-stage-icon{background:rgba(245,158,11,.16)}
+.engineering-issues{margin-top:12px;padding:11px 12px;border-radius:12px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.16)}.engineering-issues p{margin:6px 0;font-size:.76rem;line-height:1.4}.engineering-capabilities{margin-top:10px}.engineering-capabilities summary{cursor:pointer;font-weight:700;font-size:.8rem}.engineering-capability-list{margin-top:8px;display:grid;gap:5px}.engineering-capability-list>div{display:flex;justify-content:space-between;gap:16px;font-size:.75rem;padding:6px 0;border-bottom:1px solid rgba(148,163,184,.1)}.engineering-capabilities ul{margin:8px 0 0;padding-left:18px;font-size:.76rem;line-height:1.5}
+
+/* QR/APK connectivity fallback controls */
+.qr-network-options { margin: 10px 0 4px; }
+.qr-network-options .qr-actions { flex-wrap: wrap; }
+.apk-qr-panel select {
+  width: 100%;
+  margin-top: 10px;
+  min-height: 40px;
+  border: 1px solid var(--border, #dce6e2);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #fff;
+  color: #24332e;
+  font: inherit;
+}
+.apk-secondary-open:disabled { opacity: .6; cursor: wait; }

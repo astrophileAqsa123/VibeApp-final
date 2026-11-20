@@ -1,0 +1,44 @@
+/* ==========================================================================
+   MobileTabs (bottom bar, only on <= 960px)
+   ========================================================================== */
+.studio-mobile-tabs {
+  display: none;
+}
+
+@media (max-width: 960px) {
+  .studio-mobile-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    flex-shrink: 0;
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    z-index: 20;
+  }
+
+  .studio-mobile-tabs button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 54px;
+    background: none;
+    border: 0;
+    color: var(--muted);
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: inset 0 2px 0 transparent;
+    transition: color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .studio-mobile-tabs button svg {
+    font-size: 1.15rem;
+  }
+
+  .studio-mobile-tabs button.is-active {
+    color: var(--teal-light);
+    box-shadow: inset 0 2px 0 var(--teal);
+  }
+}

@@ -1,0 +1,141 @@
+/* ==========================================================================
+   TERMINAL COMPONENT
+   ========================================================================== */
+.landing-root .terminal {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, calc(100vw - 2 * var(--gutter)));
+  height: min(62vh, 560px);
+  border-radius: var(--radius-lg);
+  background: var(--terminal);
+  border: 1px solid rgba(243, 244, 239, 0.1);
+  box-shadow: var(--shadow-soft);
+  color: #d7ded8;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.7;
+  overflow: hidden;
+}
+
+.landing-root .terminal__bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 44px;
+  padding: 0 16px;
+  background: var(--terminal-2);
+  border-bottom: 1px solid rgba(243, 244, 239, 0.08);
+}
+
+.landing-root .terminal__dots {
+  display: flex;
+  gap: 6px;
+}
+
+.landing-root .terminal__dots i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(243, 244, 239, 0.14);
+}
+
+.landing-root .terminal__title {
+  flex: 1;
+  text-align: center;
+  font-size: 12px;
+  color: rgba(243, 244, 239, 0.55);
+}
+
+.landing-root .terminal__badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(85, 214, 138, 0.35);
+  font-size: 11px;
+  color: var(--accent-2);
+}
+
+.landing-root .terminal__body {
+  flex: 1;
+  padding: 16px 20px;
+  overflow: hidden;
+}
+
+.landing-root .terminal__code {
+  will-change: transform;
+}
+
+.landing-root .terminal__line {
+  white-space: pre;
+}
+
+.landing-root .terminal__line--cmd {
+  color: #f3f4ef;
+}
+
+.landing-root .terminal__line--cmd::before,
+.landing-root .terminal__line--prompt::before {
+  content: '$ ';
+  color: rgba(243, 244, 239, 0.4);
+}
+
+.landing-root .terminal__line--ok::before {
+  content: '\2713  ';
+  color: var(--accent-2);
+}
+
+.landing-root .terminal__line--info::before {
+  content: '\203A  ';
+  color: rgba(243, 244, 239, 0.4);
+}
+
+.landing-root .terminal__line--ok,
+.landing-root .terminal__line--info {
+  color: rgba(243, 244, 239, 0.62);
+}
+
+.landing-root .terminal__cursor {
+  display: inline-block;
+  width: 8px;
+  height: 1.1em;
+  vertical-align: -0.2em;
+  background: var(--accent);
+  animation: blink 1s steps(2, start) infinite;
+}
+
+.landing-root .tok-kw {
+  color: var(--accent-2);
+}
+
+.landing-root .tok-str,
+.landing-root .tok-num {
+  color: #e6ead0;
+}
+
+.landing-root .tok-type {
+  color: #9fd8c3;
+}
+
+.landing-root .tok-ann {
+  color: #8fa89b;
+}
+
+.landing-root .tok-cm {
+  color: #5c6f65;
+}
+
+@media (max-width: 767px) {
+  .landing-root .terminal {
+    height: 52vh;
+    border-radius: 12px;
+    font-size: 11px;
+  }
+
+  .landing-root .terminal__bar {
+    height: 38px;
+  }
+
+  .landing-root .terminal__body {
+    padding: 12px 14px;
+  }
+}

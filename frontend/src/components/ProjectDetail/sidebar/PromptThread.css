@@ -1,0 +1,87 @@
+/* ==========================================================================
+   PromptThread (version / prompt cards)
+   ========================================================================== */
+
+/* Prompt history stream */
+.studio-thread {
+  flex: 1;
+  min-height: 0; /* thread apne andar scroll kare, page nahi */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.studio-prompt-card {
+  border-radius: var(--radius-md, 10px);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.studio-prompt-card:hover {
+  border-color: var(--line-strong);
+  transform: translateY(-1px);
+}
+
+.studio-prompt-card.is-active {
+  border-color: var(--teal);
+  background: rgba(16, 185, 129, 0.05);
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.15);
+}
+
+.studio-prompt-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.studio-card-version-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--panel-elevated);
+  color: var(--muted);
+}
+
+.studio-prompt-card.is-active .studio-card-version-tag {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--teal-light);
+}
+
+.studio-card-active-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--teal-light);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.studio-prompt-text {
+  font-size: 0.88rem;
+  color: var(--ink);
+  line-height: 1.5;
+  margin: 0;
+  word-break: break-word;
+}
+
+.studio-card-footer {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--muted);
+}

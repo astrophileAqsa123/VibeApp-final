@@ -1,0 +1,45 @@
+/* ==========================================================================
+   CTA COMPONENT
+   ========================================================================== */
+.landing-root .cta {
+  padding-top: clamp(128px, 16vw, 224px);
+  padding-bottom: clamp(128px, 16vw, 224px);
+}
+
+.landing-root .cta__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  text-align: center;
+}
+
+.landing-root .cta .lead {
+  text-align: center;
+}
+
+.landing-root .cta__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+}
+
+
+@media (max-width: 767px) {
+  .landing-root .cta__inner {
+    gap: 24px;
+  }
+  .landing-root .cta__actions {
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+}
+@media (max-width: 480px) {
+  .landing-root .cta__actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

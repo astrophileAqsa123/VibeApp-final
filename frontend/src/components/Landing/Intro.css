@@ -1,0 +1,43 @@
+/* ==========================================================================
+   INTRO COMPONENT
+   ========================================================================== */
+.landing-root .intro {
+  border-top: 1px solid var(--line);
+}
+
+.landing-root .intro__grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 48px;
+  align-items: start;
+}
+
+.landing-root .intro__aside {
+  padding-top: 0.6em;
+}
+
+.landing-root .intro__copy {
+  display: grid;
+  gap: 28px;
+}
+
+@media (max-width: 1023px) {
+  .landing-root .intro__grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .landing-root .intro__aside {
+    padding-top: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .landing-root .intro__grid {
+    gap: 20px;
+  }
+
+  /* section padding already handled by --section-y clamp */
+  .landing-root .intro {
+  }
+}
