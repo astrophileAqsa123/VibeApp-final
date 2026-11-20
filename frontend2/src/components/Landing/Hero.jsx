@@ -55,7 +55,7 @@ export default function Hero() {
       <div className='container hero__layout'>
         <div className='hero__inner'>
           <h1 className='display hero__title' data-hero>
-            <span className='hero__title-line-1'>Turn your app idea</span>
+            <span className='hero__title-line-1'>Turn your idea</span>
             <span className='hero__title-line-2'>into a real Flutter app</span>
             <span className='hero__title-line-3'>
               <span>with</span>
