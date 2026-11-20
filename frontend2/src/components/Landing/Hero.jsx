@@ -58,28 +58,32 @@ export default function Hero() {
             className='display hero__title'
             data-hero
             style={{
-              fontSize: 'clamp(1.5rem, 4.2vw, 2.75rem)',
+              fontSize: 'clamp(1.75rem, 5vw, 3.25rem)',
               lineHeight: 1.2,
               display: 'flex',
-              flexWrap: 'wrap',
+              flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.4em',
+              textAlign: 'center',
             }}
           >
-            <span className='hero__sparkle' aria-hidden='true'>
-              <svg width='20' height='20' viewBox='0 0 24 24' fill='none'>
-                <path d='M12 2C12 7.5 7.5 12 2 12C7.5 12 12 16.5 12 22C12 16.5 16.5 12 22 12C16.5 12 12 7.5 12 2Z' fill='url(#hero-accent-grad)' />
-                <defs>
-                  <linearGradient id='hero-accent-grad' x1='2' y1='2' x2='22' y2='22' gradientUnits='userSpaceOnUse'>
-                    <stop stopColor='var(--accent-2)' />
-                    <stop offset='1' stopColor='var(--accent)' />
-                  </linearGradient>
-                </defs>
-              </svg>
+            <span className='hero__title-line-1'>Describe your app,</span>
+            <span
+              className='hero__title-line-2'
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4em' }}
+            >
+              <span className='hero__sparkle' aria-hidden='true'>
+                <svg width='22' height='22' viewBox='0 0 24 24' fill='none'>
+                  <path d='M12 2C12 7.5 7.5 12 2 12C7.5 12 12 16.5 12 22C12 16.5 16.5 12 22 12C16.5 12 12 7.5 12 2Z' fill='url(#hero-accent-grad)' />
+                  <defs>
+                    <linearGradient id='hero-accent-grad' x1='2' y1='2' x2='22' y2='22' gradientUnits='userSpaceOnUse'>
+                      <stop stopColor='var(--accent-2)' />
+                      <stop offset='1' stopColor='var(--accent)' />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </span>
+              <span className='hero__title-keyword'>Preview and Ship on phone</span>
             </span>
-            <span>Describe it. Preview it.</span>
-            <span className='hero__title-keyword'>Ship it as an app.</span>
           </h1>
           <p className='lead hero__lead' data-hero>
             Describe your app, preview it live, and export a Flutter APK to your own phone.
