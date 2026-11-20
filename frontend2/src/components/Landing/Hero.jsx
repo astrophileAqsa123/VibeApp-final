@@ -55,8 +55,8 @@ export default function Hero() {
       <div className='container hero__layout'>
         <div className='hero__inner'>
           <h1 className='display hero__title' data-hero>
-            <span className='hero__title-line-1'>Enhance</span>
-            <span className='hero__title-line-2'>your workflow &amp;</span>
+            <span className='hero__title-line-1'>Imagine</span>
+            <span className='hero__title-line-2'>your app idea &amp;</span>
             <span className='hero__title-line-3'>
               <span className='hero__sparkle' aria-hidden='true'>
                 <svg width='28' height='28' viewBox='0 0 24 24' fill='none'>
@@ -70,7 +70,7 @@ export default function Hero() {
                   </defs>
                 </svg>
               </span>
-              <span className='hero__title-keyword'>productivity</span>
+              <span className='hero__title-keyword'>vibeapp apps</span>
               <span className='hero__planet' aria-hidden='true'>
                 <svg width='44' height='44' viewBox='0 0 48 48' fill='none'>
                   <defs>
@@ -94,14 +94,14 @@ export default function Hero() {
             </span>
           </h1>
           <p className='lead hero__lead' data-hero>
-            Turn your ideas into real applications with an AI-powered development workflow.
+            Describe your app, preview it live, and export a Flutter APK to your own phone.
           </p>
           <div className='hero__actions' data-hero>
             <Button to={isAuthenticated ? '/build' : '/signup'} variant='accent' arrow>
-              Start Building
+              Build Your App
             </Button>
             <Button href='#product' variant='ghost'>
-              Explore Platform
+              See Live Preview
             </Button>
           </div>
         </div>
